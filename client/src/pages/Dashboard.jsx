@@ -5,6 +5,7 @@ import Header from '../components/Header';
 import Summary from '../components/Summary';
 import TransactionForm from '../components/TransactionForm';
 import TransactionList from '../components/TransactionList';
+import TransactionSkeleton from '../components/SkeletonRow';
 import CategoryChart from '../components/CategoryChart';
 import Filters from '../components/Filters';
 
@@ -55,9 +56,7 @@ const Dashboard = () => {
           </div>
 
           {loading ? (
-            <div className="flex justify-center py-12">
-              <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-green-500"></div>
-            </div>
+            <TransactionSkeleton />
           ) : (
             <TransactionList onEdit={handleEdit} />
           )}

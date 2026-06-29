@@ -2,6 +2,23 @@ const pool = require('../config/db');
 
 const initDB = async () => {
   try {
+    // Crear tipos ENUM
+    await pool.query(`
+      DO $$ BEGIN
+        CREATE TYPE transaction_type AS ENUM ('income', 'expense');
+      EXCEPTION
+        WHEN duplicate_object THEN null;
+      END $$;
+    `);
+
+    await pool.query(`
+      DO $$ BEGIN
+        CREATE TYPE category_type AS ENUM ('Comida', 'Transporte', 'Ocio', 'Sueldo', 'Servicios', 'Salud', 'Educación', 'Otros');
+      EXCEPTION
+        WHEN duplicate_object THEN null;
+      END $$;
+    `);
+
     // Crear tabla de usuarios
     await pool.query(`
       CREATE TABLE IF NOT EXISTS users (
@@ -13,21 +30,21 @@ const initDB = async () => {
       );
     `);
 
-    // Crear tabla de transacciones
+    // Crear tabla de transacciones con ENUMs
     await pool.query(`
       CREATE TABLE IF NOT EXISTS transactions (
         id SERIAL PRIMARY KEY,
         user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-        type VARCHAR(10) NOT NULL CHECK (type IN ('income', 'expense')),
+        type transaction_type NOT NULL,
         amount DECIMAL(12, 2) NOT NULL CHECK (amount > 0),
-        category VARCHAR(50) NOT NULL,
+        category category_type NOT NULL,
         description VARCHAR(255) NOT NULL,
         date DATE NOT NULL DEFAULT CURRENT_DATE,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       );
     `);
 
-    // Crear índices para mejorar rendimiento
+    // Crear índices B-tree para mejorar rendimiento
     await pool.query(`
       CREATE INDEX IF NOT EXISTS idx_transactions_user_id ON transactions(user_id);
     `);
