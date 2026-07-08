@@ -22,10 +22,15 @@ api.interceptors.request.use((config) => {
 api.interceptors.response.use(
   (response) => response,
   (error) => {
+    // Solo redirigir al login si es un 401 Y no es una petición de transacciones vacía
     if (error.response?.status === 401) {
-      localStorage.removeItem('monetty_token');
-      localStorage.removeItem('monetty_user');
-      window.location.href = '/login';
+      const isAuthEndpoint = error.config?.url?.includes('/auth/');
+      // Si falla en login/register, no hacer redirect (mostrar error en form)
+      if (!isAuthEndpoint) {
+        localStorage.removeItem('monetty_token');
+        localStorage.removeItem('monetty_user');
+        window.location.href = '/login';
+      }
     }
     return Promise.reject(error);
   }

@@ -165,8 +165,12 @@ const getMe = async (req, res) => {
     // --- MODO DEMO ---
     if (isDemoMode()) {
       const user = demoUsers.find(u => u.id === req.user.id);
+      // Si el servidor se reinició y se perdió la memoria, usar datos del token
       if (!user) {
-        return res.status(404).json({ success: false, message: 'Usuario no encontrado.' });
+        return res.json({
+          success: true,
+          data: { user: { id: req.user.id, name: 'Usuario Demo', email: req.user.email, created_at: new Date() } }
+        });
       }
       return res.json({
         success: true,
