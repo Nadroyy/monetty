@@ -1,7 +1,6 @@
 import { Filter, X } from 'lucide-react';
 import { useTransactions } from '../context/TransactionContext';
-
-const CATEGORIES = ['Comida', 'Transporte', 'Ocio', 'Sueldo', 'Servicios', 'Salud', 'Educación', 'Otros'];
+import { CATEGORIES } from '../utils/constants';
 
 const Filters = () => {
   const { filters, setFilters } = useTransactions();

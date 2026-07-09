@@ -3,11 +3,13 @@ import { useAuth } from '../context/AuthContext';
 import { useTransactions } from '../context/TransactionContext';
 import Header from '../components/Header';
 import Summary from '../components/Summary';
+import MonthlyIncomeSetup from '../components/MonthlyIncomeSetup';
 import TransactionForm from '../components/TransactionForm';
 import TransactionList from '../components/TransactionList';
 import TransactionSkeleton from '../components/SkeletonRow';
 import CategoryChart from '../components/CategoryChart';
 import Filters from '../components/Filters';
+import PendingPaymentList from '../components/PendingPaymentList';
 
 const Dashboard = () => {
   const { user } = useAuth();
@@ -30,6 +32,11 @@ const Dashboard = () => {
       <Header user={user} />
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* Ingreso mensual fijo */}
+        <div className="mb-6">
+          <MonthlyIncomeSetup />
+        </div>
+
         {/* Resumen superior */}
         <Summary />
 
@@ -43,7 +50,10 @@ const Dashboard = () => {
           </div>
         </div>
 
-        {/* Botón agregar y lista */}
+        {/* Pagos pendientes */}
+        <PendingPaymentList />
+
+        {/* Botón agregar y lista de movimientos */}
         <div className="mt-8">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-xl font-bold text-gray-800">Movimientos</h2>

@@ -1,6 +1,6 @@
 const { Router } = require('express');
 const { body } = require('express-validator');
-const { register, login, getMe } = require('../controllers/auth.controller');
+const { register, login, getMe, updateMonthlyIncome } = require('../controllers/auth.controller');
 const authMiddleware = require('../middleware/auth.middleware');
 const validate = require('../middleware/validate.middleware');
 
@@ -45,5 +45,18 @@ router.post(
 
 // GET /api/auth/me
 router.get('/me', authMiddleware, getMe);
+
+// PUT /api/auth/monthly-income
+router.put(
+  '/monthly-income',
+  authMiddleware,
+  [
+    body('monthly_income')
+      .optional({ nullable: true })
+      .isFloat({ min: 0 }).withMessage('El ingreso mensual debe ser un número positivo.')
+  ],
+  validate,
+  updateMonthlyIncome
+);
 
 module.exports = router;

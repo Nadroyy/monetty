@@ -1,8 +1,8 @@
 import { useState } from 'react';
 import { X } from 'lucide-react';
 import { useTransactions } from '../context/TransactionContext';
-
-const CATEGORIES = ['Comida', 'Transporte', 'Ocio', 'Sueldo', 'Servicios', 'Salud', 'Educación', 'Otros'];
+import { CATEGORIES } from '../utils/constants';
+import { todayISO } from '../utils/format';
 
 const TransactionForm = ({ transaction, onClose }) => {
   const { createTransaction, updateTransaction } = useTransactions();
@@ -13,7 +13,7 @@ const TransactionForm = ({ transaction, onClose }) => {
     amount: transaction?.amount || '',
     category: transaction?.category || 'Comida',
     description: transaction?.description || '',
-    date: transaction?.date?.split('T')[0] || new Date().toISOString().split('T')[0]
+    date: transaction?.date?.split('T')[0] || todayISO()
   });
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -29,10 +29,7 @@ const TransactionForm = ({ transaction, onClose }) => {
     setLoading(true);
 
     try {
-      const data = {
-        ...formData,
-        amount: parseFloat(formData.amount)
-      };
+      const data = { ...formData, amount: parseFloat(formData.amount) };
 
       if (isEditing) {
         await updateTransaction(transaction.id, data);
@@ -65,14 +62,12 @@ const TransactionForm = ({ transaction, onClose }) => {
           </button>
         </div>
 
-        {/* Error */}
         {error && (
           <div className="mx-6 mt-4 bg-red-50 text-red-700 px-4 py-2 rounded-lg text-sm">
             {error}
           </div>
         )}
 
-        {/* Form */}
         <form onSubmit={handleSubmit} className="p-6 space-y-4">
           {/* Tipo */}
           <div>

@@ -1,28 +1,11 @@
 import { useTransactions } from '../context/TransactionContext';
-
-const CATEGORY_COLORS = {
-  Comida: 'bg-orange-400',
-  Transporte: 'bg-blue-400',
-  Ocio: 'bg-purple-400',
-  Sueldo: 'bg-green-400',
-  Servicios: 'bg-yellow-400',
-  Salud: 'bg-pink-400',
-  Educación: 'bg-indigo-400',
-  Otros: 'bg-gray-400'
-};
+import { formatCurrency } from '../utils/format';
+import { CATEGORY_COLORS } from '../utils/constants';
 
 const CategoryChart = () => {
   const { expenseByCategory, totalExpense } = useTransactions();
 
   const categories = Object.entries(expenseByCategory).sort((a, b) => b[1] - a[1]);
-
-  const formatCurrency = (amount) => {
-    return new Intl.NumberFormat('es-CO', {
-      style: 'currency',
-      currency: 'COP',
-      minimumFractionDigits: 0
-    }).format(amount);
-  };
 
   if (categories.length === 0) {
     return (

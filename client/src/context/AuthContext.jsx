@@ -45,6 +45,16 @@ export const AuthProvider = ({ children }) => {
     return response.data;
   };
 
+  const updateMonthlyIncome = async (amount) => {
+    const response = await api.put('/auth/monthly-income', {
+      monthly_income: amount
+    });
+    const updatedUser = { ...user, monthly_income: response.data.data.monthly_income };
+    localStorage.setItem('monetty_user', JSON.stringify(updatedUser));
+    setUser(updatedUser);
+    return response.data;
+  };
+
   const logout = () => {
     localStorage.removeItem('monetty_token');
     localStorage.removeItem('monetty_user');
@@ -57,6 +67,7 @@ export const AuthProvider = ({ children }) => {
     login,
     register,
     logout,
+    updateMonthlyIncome,
     isAuthenticated: !!user
   };
 

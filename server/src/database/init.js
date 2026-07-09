@@ -26,6 +26,7 @@ const initDB = async () => {
         name VARCHAR(100) NOT NULL,
         email VARCHAR(150) UNIQUE NOT NULL,
         password VARCHAR(255) NOT NULL,
+        monthly_income DECIMAL(12, 2) DEFAULT NULL,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       );
     `);
@@ -53,6 +54,29 @@ const initDB = async () => {
     `);
     await pool.query(`
       CREATE INDEX IF NOT EXISTS idx_transactions_category ON transactions(category);
+    `);
+
+    // Crear tabla de pagos pendientes
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS pending_payments (
+        id SERIAL PRIMARY KEY,
+        user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        description VARCHAR(255) NOT NULL,
+        total_amount DECIMAL(12, 2) NOT NULL CHECK (total_amount > 0),
+        installment_amount DECIMAL(12, 2) NOT NULL CHECK (installment_amount > 0),
+        total_installments INTEGER NOT NULL DEFAULT 1 CHECK (total_installments >= 1),
+        paid_installments INTEGER NOT NULL DEFAULT 0 CHECK (paid_installments >= 0),
+        frequency VARCHAR(20) NOT NULL DEFAULT 'once' CHECK (frequency IN ('once', 'monthly', 'custom')),
+        due_date DATE NOT NULL,
+        category category_type NOT NULL DEFAULT 'Otros',
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
+    `);
+    await pool.query(`
+      CREATE INDEX IF NOT EXISTS idx_pending_payments_user_id ON pending_payments(user_id);
+    `);
+    await pool.query(`
+      CREATE INDEX IF NOT EXISTS idx_pending_payments_due_date ON pending_payments(due_date);
     `);
 
     console.log('✅ Base de datos inicializada correctamente');

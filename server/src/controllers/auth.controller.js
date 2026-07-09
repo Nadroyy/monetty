@@ -11,6 +11,10 @@ const isDemoMode = () => {
 };
 // =======================================================
 
+// Exportar demoUsers para uso en otros controladores
+module.exports.demoUsers = demoUsers;
+module.exports.isDemoMode = isDemoMode;
+
 // Generar token JWT
 const generateToken = (user) => {
   return jwt.sign(
@@ -34,14 +38,14 @@ const register = async (req, res) => {
 
       const salt = await bcrypt.genSalt(10);
       const hashedPassword = await bcrypt.hash(password, salt);
-      const newUser = { id: demoIdCounter++, name, email, password: hashedPassword, created_at: new Date() };
+      const newUser = { id: demoIdCounter++, name, email, password: hashedPassword, monthly_income: null, created_at: new Date() };
       demoUsers.push(newUser);
 
       const token = generateToken(newUser);
       return res.status(201).json({
         success: true,
         message: 'Usuario registrado exitosamente.',
-        data: { user: { id: newUser.id, name: newUser.name, email: newUser.email }, token }
+        data: { user: { id: newUser.id, name: newUser.name, email: newUser.email, monthly_income: null }, token }
       });
     }
     // --- FIN MODO DEMO ---
@@ -63,9 +67,8 @@ const register = async (req, res) => {
     const salt = await bcrypt.genSalt(10);
     const hashedPassword = await bcrypt.hash(password, salt);
 
-    // Crear usuario
     const result = await pool.query(
-      'INSERT INTO users (name, email, password) VALUES ($1, $2, $3) RETURNING id, name, email, created_at',
+      'INSERT INTO users (name, email, password) VALUES ($1, $2, $3) RETURNING id, name, email, monthly_income, created_at',
       [name, email, hashedPassword]
     );
 
@@ -76,7 +79,7 @@ const register = async (req, res) => {
       success: true,
       message: 'Usuario registrado exitosamente.',
       data: {
-        user: { id: user.id, name: user.name, email: user.email },
+        user: { id: user.id, name: user.name, email: user.email, monthly_income: user.monthly_income },
         token
       }
     });
@@ -110,14 +113,14 @@ const login = async (req, res) => {
       return res.json({
         success: true,
         message: 'Inicio de sesión exitoso.',
-        data: { user: { id: user.id, name: user.name, email: user.email }, token }
+        data: { user: { id: user.id, name: user.name, email: user.email, monthly_income: user.monthly_income || null }, token }
       });
     }
     // --- FIN MODO DEMO ---
 
     // Buscar usuario
     const result = await pool.query(
-      'SELECT id, name, email, password FROM users WHERE email = $1',
+      'SELECT id, name, email, password, monthly_income FROM users WHERE email = $1',
       [email]
     );
 
@@ -146,7 +149,7 @@ const login = async (req, res) => {
       success: true,
       message: 'Inicio de sesión exitoso.',
       data: {
-        user: { id: user.id, name: user.name, email: user.email },
+        user: { id: user.id, name: user.name, email: user.email, monthly_income: user.monthly_income },
         token
       }
     });
@@ -169,18 +172,18 @@ const getMe = async (req, res) => {
       if (!user) {
         return res.json({
           success: true,
-          data: { user: { id: req.user.id, name: 'Usuario Demo', email: req.user.email, created_at: new Date() } }
+          data: { user: { id: req.user.id, name: 'Usuario Demo', email: req.user.email, monthly_income: null, created_at: new Date() } }
         });
       }
       return res.json({
         success: true,
-        data: { user: { id: user.id, name: user.name, email: user.email, created_at: user.created_at } }
+        data: { user: { id: user.id, name: user.name, email: user.email, monthly_income: user.monthly_income || null, created_at: user.created_at } }
       });
     }
     // --- FIN MODO DEMO ---
 
     const result = await pool.query(
-      'SELECT id, name, email, created_at FROM users WHERE id = $1',
+      'SELECT id, name, email, monthly_income, created_at FROM users WHERE id = $1',
       [req.user.id]
     );
 
@@ -204,4 +207,61 @@ const getMe = async (req, res) => {
   }
 };
 
-module.exports = { register, login, getMe };
+// PUT /api/auth/monthly-income
+const updateMonthlyIncome = async (req, res) => {
+  try {
+    const { monthly_income } = req.body;
+    const userId = req.user.id;
+
+    // Validar: puede ser null (para desactivar) o un número positivo
+    if (monthly_income !== null && (isNaN(monthly_income) || monthly_income < 0)) {
+      return res.status(400).json({
+        success: false,
+        message: 'El ingreso mensual debe ser un número positivo o null para desactivarlo.'
+      });
+    }
+
+    const incomeValue = monthly_income === null ? null : parseFloat(monthly_income);
+
+    // --- MODO DEMO ---
+    if (isDemoMode()) {
+      const user = demoUsers.find(u => u.id === userId);
+      if (!user) {
+        return res.status(404).json({ success: false, message: 'Usuario no encontrado.' });
+      }
+      user.monthly_income = incomeValue;
+      return res.json({
+        success: true,
+        message: 'Ingreso mensual actualizado.',
+        data: { monthly_income: incomeValue }
+      });
+    }
+    // --- FIN MODO DEMO ---
+
+    const result = await pool.query(
+      'UPDATE users SET monthly_income = $1 WHERE id = $2 RETURNING id, name, email, monthly_income',
+      [incomeValue, userId]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: 'Usuario no encontrado.'
+      });
+    }
+
+    res.json({
+      success: true,
+      message: 'Ingreso mensual actualizado.',
+      data: { monthly_income: result.rows[0].monthly_income }
+    });
+  } catch (error) {
+    console.error('Error al actualizar ingreso mensual:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error al actualizar el ingreso mensual.'
+    });
+  }
+};
+
+module.exports = { register, login, getMe, updateMonthlyIncome };

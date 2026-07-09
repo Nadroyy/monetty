@@ -1,21 +1,9 @@
 import { Trash2, Edit2, ArrowUpCircle, ArrowDownCircle } from 'lucide-react';
 import { useTransactions } from '../context/TransactionContext';
+import { formatCurrency, formatDate } from '../utils/format';
 
 const TransactionList = ({ onEdit }) => {
   const { transactions, deleteTransaction } = useTransactions();
-
-  const formatCurrency = (amount) => {
-    return new Intl.NumberFormat('es-CO', {
-      style: 'currency',
-      currency: 'COP',
-      minimumFractionDigits: 0
-    }).format(amount);
-  };
-
-  const formatDate = (dateStr) => {
-    const date = new Date(dateStr + 'T00:00:00');
-    return date.toLocaleDateString('es-CO', { day: '2-digit', month: 'short', year: 'numeric' });
-  };
 
   const handleDelete = async (id) => {
     if (window.confirm('¿Estás seguro de eliminar este movimiento?')) {
