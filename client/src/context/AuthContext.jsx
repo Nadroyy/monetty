@@ -13,14 +13,35 @@ export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
 
+  // Verificar sesión al cargar la app
   useEffect(() => {
-    const token = localStorage.getItem('monetty_token');
-    const savedUser = localStorage.getItem('monetty_user');
+    const verifySession = async () => {
+      const token = localStorage.getItem('monetty_token');
 
-    if (token && savedUser) {
-      setUser(JSON.parse(savedUser));
-    }
-    setLoading(false);
+      if (!token) {
+        setLoading(false);
+        return;
+      }
+
+      try {
+        // Validar token contra el servidor
+        const response = await api.get('/auth/me');
+        const userData = response.data.data.user;
+
+        localStorage.setItem('monetty_user', JSON.stringify(userData));
+        setUser(userData);
+      } catch (error) {
+        // Token inválido o expirado — limpiar sesión
+        console.warn('Sesión expirada o inválida');
+        localStorage.removeItem('monetty_token');
+        localStorage.removeItem('monetty_user');
+        setUser(null);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    verifySession();
   }, []);
 
   const login = async (email, password) => {
