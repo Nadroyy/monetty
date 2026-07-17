@@ -1,66 +1,22 @@
-const pool = require('../config/db');
-
-// ============ MODO DEMO (sin base de datos) ============
-const demoPendingPayments = [];
-let demoPendingIdCounter = 1;
-
-const isDemoMode = () => {
-  return !process.env.DATABASE_URL || process.env.DATABASE_URL.includes('usuario:password');
-};
-// =======================================================
+const db = require('../config/sqlite');
 
 // GET /api/pending-payments
 const getPendingPayments = async (req, res) => {
   try {
     const userId = req.user.id;
-    const { status } = req.query; // 'active', 'completed', 'overdue' o vacío para todos
-
-    // --- MODO DEMO ---
-    if (isDemoMode()) {
-      let filtered = demoPendingPayments.filter(p => p.user_id === userId);
-      
-      const today = new Date().toISOString().split('T')[0];
-      
-      // Calcular estado dinámico
-      filtered = filtered.map(p => {
-        let computedStatus = 'active';
-        if (p.paid_installments >= p.total_installments) {
-          computedStatus = 'completed';
-        } else if (p.due_date && p.due_date < today) {
-          computedStatus = 'overdue';
-        }
-        return { ...p, status: computedStatus };
-      });
-
-      if (status) {
-        filtered = filtered.filter(p => p.status === status);
-      }
-
-      filtered.sort((a, b) => {
-        // Primero vencidos, luego activos, luego completados
-        const order = { overdue: 0, active: 1, completed: 2 };
-        if (order[a.status] !== order[b.status]) return order[a.status] - order[b.status];
-        // Dentro del mismo estado, por fecha límite más cercana
-        if (a.due_date && b.due_date) return a.due_date.localeCompare(b.due_date);
-        return 0;
-      });
-
-      return res.json({ success: true, data: { payments: filtered } });
-    }
-    // --- FIN MODO DEMO ---
+    const { status } = req.query;
 
     let query = `
       SELECT *,
         CASE
           WHEN paid_installments >= total_installments THEN 'completed'
-          WHEN due_date < CURRENT_DATE THEN 'overdue'
+          WHEN due_date < date('now') THEN 'overdue'
           ELSE 'active'
         END as status
-      FROM pending_payments 
-      WHERE user_id = $1
+      FROM pending_payments
+      WHERE user_id = ?
     `;
     const params = [userId];
-    let paramIndex = 2;
 
     if (status) {
       query = `
@@ -68,21 +24,27 @@ const getPendingPayments = async (req, res) => {
           SELECT *,
             CASE
               WHEN paid_installments >= total_installments THEN 'completed'
-              WHEN due_date < CURRENT_DATE THEN 'overdue'
+              WHEN due_date < date('now') THEN 'overdue'
               ELSE 'active'
             END as status
-          FROM pending_payments 
-          WHERE user_id = $1
-        ) sub WHERE status = $${paramIndex}
+          FROM pending_payments
+          WHERE user_id = ?
+        ) sub WHERE status = ?
       `;
       params.push(status);
-      paramIndex++;
     }
 
-    query += ' ORDER BY CASE WHEN status = \'overdue\' THEN 0 WHEN status = \'active\' THEN 1 ELSE 2 END, due_date ASC';
+    query += ` ORDER BY
+      CASE
+        WHEN status = 'overdue' THEN 0
+        WHEN status = 'active' THEN 1
+        ELSE 2
+      END,
+      due_date ASC`;
 
-    const result = await pool.query(query, params);
-    res.json({ success: true, data: { payments: result.rows } });
+    const payments = db.prepare(query).all(...params);
+
+    res.json({ success: true, data: { payments } });
   } catch (error) {
     console.error('Error al obtener pagos pendientes:', error);
     res.status(500).json({ success: false, message: 'Error al obtener los pagos pendientes.' });
@@ -95,43 +57,19 @@ const createPendingPayment = async (req, res) => {
     const { description, total_amount, total_installments, frequency, due_date, category } = req.body;
     const userId = req.user.id;
 
-    const installmentAmount = parseFloat(total_amount) / parseInt(total_installments);
+    const installmentAmount = Math.round((parseFloat(total_amount) / parseInt(total_installments)) * 100) / 100;
 
-    // --- MODO DEMO ---
-    if (isDemoMode()) {
-      const newPayment = {
-        id: demoPendingIdCounter++,
-        user_id: userId,
-        description,
-        total_amount: parseFloat(total_amount),
-        installment_amount: Math.round(installmentAmount * 100) / 100,
-        total_installments: parseInt(total_installments),
-        paid_installments: 0,
-        frequency, // 'once', 'monthly', 'custom'
-        due_date,
-        category: category || 'Otros',
-        created_at: new Date().toISOString()
-      };
-      demoPendingPayments.push(newPayment);
-      return res.status(201).json({
-        success: true,
-        message: 'Pago pendiente creado.',
-        data: { payment: { ...newPayment, status: 'active' } }
-      });
-    }
-    // --- FIN MODO DEMO ---
-
-    const result = await pool.query(
+    const result = db.prepare(
       `INSERT INTO pending_payments (user_id, description, total_amount, installment_amount, total_installments, paid_installments, frequency, due_date, category)
-       VALUES ($1, $2, $3, $4, $5, 0, $6, $7, $8)
-       RETURNING *`,
-      [userId, description, total_amount, Math.round(installmentAmount * 100) / 100, total_installments, frequency, due_date, category || 'Otros']
-    );
+       VALUES (?, ?, ?, ?, ?, 0, ?, ?, ?)`
+    ).run(userId, description, total_amount, installmentAmount, total_installments, frequency, due_date, category || 'Otros');
+
+    const payment = db.prepare('SELECT * FROM pending_payments WHERE id = ?').get(result.lastInsertRowid);
 
     res.status(201).json({
       success: true,
       message: 'Pago pendiente creado.',
-      data: { payment: { ...result.rows[0], status: 'active' } }
+      data: { payment: { ...payment, status: 'active' } }
     });
   } catch (error) {
     console.error('Error al crear pago pendiente:', error);
@@ -139,52 +77,25 @@ const createPendingPayment = async (req, res) => {
   }
 };
 
-// PUT /api/pending-payments/:id/pay  — Registrar una cuota pagada
+// PUT /api/pending-payments/:id/pay
 const payInstallment = async (req, res) => {
   try {
     const { id } = req.params;
     const userId = req.user.id;
 
-    // --- MODO DEMO ---
-    if (isDemoMode()) {
-      const payment = demoPendingPayments.find(p => p.id === parseInt(id) && p.user_id === userId);
-      if (!payment) {
-        return res.status(404).json({ success: false, message: 'Pago pendiente no encontrado.' });
-      }
-      if (payment.paid_installments >= payment.total_installments) {
-        return res.status(400).json({ success: false, message: 'Este pago ya está completado.' });
-      }
-      payment.paid_installments += 1;
-      const computedStatus = payment.paid_installments >= payment.total_installments ? 'completed' : 'active';
-      return res.json({
-        success: true,
-        message: `Cuota ${payment.paid_installments}/${payment.total_installments} registrada.`,
-        data: { payment: { ...payment, status: computedStatus } }
-      });
-    }
-    // --- FIN MODO DEMO ---
+    const payment = db.prepare('SELECT * FROM pending_payments WHERE id = ? AND user_id = ?').get(id, userId);
 
-    // Verificar existencia y propiedad
-    const existing = await pool.query(
-      'SELECT * FROM pending_payments WHERE id = $1 AND user_id = $2',
-      [id, userId]
-    );
-
-    if (existing.rows.length === 0) {
+    if (!payment) {
       return res.status(404).json({ success: false, message: 'Pago pendiente no encontrado.' });
     }
 
-    const payment = existing.rows[0];
     if (payment.paid_installments >= payment.total_installments) {
       return res.status(400).json({ success: false, message: 'Este pago ya está completado.' });
     }
 
-    const result = await pool.query(
-      `UPDATE pending_payments SET paid_installments = paid_installments + 1 WHERE id = $1 RETURNING *`,
-      [id]
-    );
+    db.prepare('UPDATE pending_payments SET paid_installments = paid_installments + 1 WHERE id = ?').run(id);
 
-    const updated = result.rows[0];
+    const updated = db.prepare('SELECT * FROM pending_payments WHERE id = ?').get(id);
     const status = updated.paid_installments >= updated.total_installments ? 'completed' : 'active';
 
     res.json({
@@ -198,60 +109,32 @@ const payInstallment = async (req, res) => {
   }
 };
 
-// PUT /api/pending-payments/:id — Editar pago pendiente
+// PUT /api/pending-payments/:id
 const updatePendingPayment = async (req, res) => {
   try {
     const { id } = req.params;
     const { description, total_amount, total_installments, frequency, due_date, category } = req.body;
     const userId = req.user.id;
 
-    const installmentAmount = parseFloat(total_amount) / parseInt(total_installments);
-
-    // --- MODO DEMO ---
-    if (isDemoMode()) {
-      const index = demoPendingPayments.findIndex(p => p.id === parseInt(id) && p.user_id === userId);
-      if (index === -1) {
-        return res.status(404).json({ success: false, message: 'Pago pendiente no encontrado.' });
-      }
-      demoPendingPayments[index] = {
-        ...demoPendingPayments[index],
-        description,
-        total_amount: parseFloat(total_amount),
-        installment_amount: Math.round(installmentAmount * 100) / 100,
-        total_installments: parseInt(total_installments),
-        frequency,
-        due_date,
-        category: category || 'Otros'
-      };
-      return res.json({
-        success: true,
-        message: 'Pago pendiente actualizado.',
-        data: { payment: demoPendingPayments[index] }
-      });
-    }
-    // --- FIN MODO DEMO ---
-
-    const existing = await pool.query(
-      'SELECT id FROM pending_payments WHERE id = $1 AND user_id = $2',
-      [id, userId]
-    );
-
-    if (existing.rows.length === 0) {
+    const existing = db.prepare('SELECT id FROM pending_payments WHERE id = ? AND user_id = ?').get(id, userId);
+    if (!existing) {
       return res.status(404).json({ success: false, message: 'Pago pendiente no encontrado.' });
     }
 
-    const result = await pool.query(
-      `UPDATE pending_payments 
-       SET description = $1, total_amount = $2, installment_amount = $3, total_installments = $4, frequency = $5, due_date = $6, category = $7
-       WHERE id = $8 AND user_id = $9
-       RETURNING *`,
-      [description, total_amount, Math.round(installmentAmount * 100) / 100, total_installments, frequency, due_date, category || 'Otros', id, userId]
-    );
+    const installmentAmount = Math.round((parseFloat(total_amount) / parseInt(total_installments)) * 100) / 100;
+
+    db.prepare(
+      `UPDATE pending_payments
+       SET description = ?, total_amount = ?, installment_amount = ?, total_installments = ?, frequency = ?, due_date = ?, category = ?
+       WHERE id = ? AND user_id = ?`
+    ).run(description, total_amount, installmentAmount, total_installments, frequency, due_date, category || 'Otros', id, userId);
+
+    const payment = db.prepare('SELECT * FROM pending_payments WHERE id = ?').get(id);
 
     res.json({
       success: true,
       message: 'Pago pendiente actualizado.',
-      data: { payment: result.rows[0] }
+      data: { payment }
     });
   } catch (error) {
     console.error('Error al actualizar pago pendiente:', error);
@@ -265,23 +148,9 @@ const deletePendingPayment = async (req, res) => {
     const { id } = req.params;
     const userId = req.user.id;
 
-    // --- MODO DEMO ---
-    if (isDemoMode()) {
-      const index = demoPendingPayments.findIndex(p => p.id === parseInt(id) && p.user_id === userId);
-      if (index === -1) {
-        return res.status(404).json({ success: false, message: 'Pago pendiente no encontrado.' });
-      }
-      demoPendingPayments.splice(index, 1);
-      return res.json({ success: true, message: 'Pago pendiente eliminado.' });
-    }
-    // --- FIN MODO DEMO ---
+    const result = db.prepare('DELETE FROM pending_payments WHERE id = ? AND user_id = ?').run(id, userId);
 
-    const result = await pool.query(
-      'DELETE FROM pending_payments WHERE id = $1 AND user_id = $2 RETURNING id',
-      [id, userId]
-    );
-
-    if (result.rows.length === 0) {
+    if (result.changes === 0) {
       return res.status(404).json({ success: false, message: 'Pago pendiente no encontrado.' });
     }
 
