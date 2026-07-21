@@ -1,4 +1,5 @@
-const db = require('../config/sqlite');
+const { Op } = require('sequelize');
+const { Transaction } = require('../models');
 
 // GET /api/transactions
 const getTransactions = async (req, res) => {
@@ -6,32 +7,20 @@ const getTransactions = async (req, res) => {
     const { category, type, startDate, endDate } = req.query;
     const userId = req.user.id;
 
-    let query = 'SELECT * FROM transactions WHERE user_id = ?';
-    const params = [userId];
+    const where = { user_id: userId };
 
-    if (category) {
-      query += ' AND category = ?';
-      params.push(category);
+    if (category) where.category = category;
+    if (type) where.type = type;
+    if (startDate || endDate) {
+      where.date = {};
+      if (startDate) where.date[Op.gte] = startDate;
+      if (endDate) where.date[Op.lte] = endDate;
     }
 
-    if (type) {
-      query += ' AND type = ?';
-      params.push(type);
-    }
-
-    if (startDate) {
-      query += ' AND date >= ?';
-      params.push(startDate);
-    }
-
-    if (endDate) {
-      query += ' AND date <= ?';
-      params.push(endDate);
-    }
-
-    query += ' ORDER BY date DESC, created_at DESC';
-
-    const transactions = db.prepare(query).all(...params);
+    const transactions = await Transaction.findAll({
+      where,
+      order: [['date', 'DESC'], ['created_at', 'DESC']]
+    });
 
     res.json({
       success: true,
@@ -52,11 +41,14 @@ const createTransaction = async (req, res) => {
     const { type, amount, category, description, date } = req.body;
     const userId = req.user.id;
 
-    const result = db.prepare(
-      'INSERT INTO transactions (user_id, type, amount, category, description, date) VALUES (?, ?, ?, ?, ?, ?)'
-    ).run(userId, type, amount, category, description, date);
-
-    const transaction = db.prepare('SELECT * FROM transactions WHERE id = ?').get(result.lastInsertRowid);
+    const transaction = await Transaction.create({
+      user_id: userId,
+      type,
+      amount,
+      category,
+      description,
+      date
+    });
 
     res.status(201).json({
       success: true,
@@ -80,7 +72,7 @@ const updateTransaction = async (req, res) => {
     const userId = req.user.id;
 
     // Verificar que la transacción pertenece al usuario
-    const existing = db.prepare('SELECT id FROM transactions WHERE id = ? AND user_id = ?').get(id, userId);
+    const existing = await Transaction.findOne({ where: { id, user_id: userId } });
 
     if (!existing) {
       return res.status(404).json({
@@ -89,16 +81,12 @@ const updateTransaction = async (req, res) => {
       });
     }
 
-    db.prepare(
-      'UPDATE transactions SET type = ?, amount = ?, category = ?, description = ?, date = ? WHERE id = ? AND user_id = ?'
-    ).run(type, amount, category, description, date, id, userId);
-
-    const transaction = db.prepare('SELECT * FROM transactions WHERE id = ?').get(id);
+    await existing.update({ type, amount, category, description, date });
 
     res.json({
       success: true,
       message: 'Transacción actualizada exitosamente.',
-      data: { transaction }
+      data: { transaction: existing }
     });
   } catch (error) {
     console.error('Error al actualizar transacción:', error);
@@ -115,9 +103,9 @@ const deleteTransaction = async (req, res) => {
     const { id } = req.params;
     const userId = req.user.id;
 
-    const result = db.prepare('DELETE FROM transactions WHERE id = ? AND user_id = ?').run(id, userId);
+    const deleted = await Transaction.destroy({ where: { id, user_id: userId } });
 
-    if (result.changes === 0) {
+    if (deleted === 0) {
       return res.status(404).json({
         success: false,
         message: 'Transacción no encontrada.'

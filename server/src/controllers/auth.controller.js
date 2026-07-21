@@ -1,6 +1,6 @@
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
-const db = require('../config/sqlite');
+const { User } = require('../models');
 
 // Generar token JWT
 const generateToken = (user) => {
@@ -17,7 +17,7 @@ const register = async (req, res) => {
     const { name, email, password } = req.body;
 
     // Verificar si el usuario ya existe
-    const existing = db.prepare('SELECT id FROM users WHERE email = ?').get(email);
+    const existing = await User.findOne({ where: { email } });
     if (existing) {
       return res.status(400).json({
         success: false,
@@ -30,11 +30,12 @@ const register = async (req, res) => {
     const hashedPassword = await bcrypt.hash(password, salt);
 
     // Crear usuario
-    const result = db.prepare(
-      'INSERT INTO users (name, email, password) VALUES (?, ?, ?)'
-    ).run(name, email, hashedPassword);
+    const user = await User.create({
+      name,
+      email,
+      password: hashedPassword
+    });
 
-    const user = db.prepare('SELECT id, name, email, monthly_income, created_at FROM users WHERE id = ?').get(result.lastInsertRowid);
     const token = generateToken(user);
 
     res.status(201).json({
@@ -60,7 +61,7 @@ const login = async (req, res) => {
     const { email, password } = req.body;
 
     // Buscar usuario
-    const user = db.prepare('SELECT id, name, email, password, monthly_income FROM users WHERE email = ?').get(email);
+    const user = await User.findOne({ where: { email } });
 
     if (!user) {
       return res.status(401).json({
@@ -100,7 +101,9 @@ const login = async (req, res) => {
 // GET /api/auth/me
 const getMe = async (req, res) => {
   try {
-    const user = db.prepare('SELECT id, name, email, monthly_income, created_at FROM users WHERE id = ?').get(req.user.id);
+    const user = await User.findByPk(req.user.id, {
+      attributes: ['id', 'name', 'email', 'monthly_income', 'created_at']
+    });
 
     if (!user) {
       return res.status(404).json({
@@ -137,9 +140,12 @@ const updateMonthlyIncome = async (req, res) => {
 
     const incomeValue = monthly_income === null ? null : parseFloat(monthly_income);
 
-    const result = db.prepare('UPDATE users SET monthly_income = ? WHERE id = ?').run(incomeValue, userId);
+    const [affectedRows] = await User.update(
+      { monthly_income: incomeValue },
+      { where: { id: userId } }
+    );
 
-    if (result.changes === 0) {
+    if (affectedRows === 0) {
       return res.status(404).json({
         success: false,
         message: 'Usuario no encontrado.'

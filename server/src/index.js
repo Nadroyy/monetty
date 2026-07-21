@@ -4,6 +4,7 @@ const dotenv = require('dotenv');
 
 dotenv.config();
 
+const { sequelize } = require('./models');
 const authRoutes = require('./routes/auth.routes');
 const transactionRoutes = require('./routes/transaction.routes');
 const pendingRoutes = require('./routes/pending.routes');
@@ -35,8 +36,25 @@ app.use((err, req, res, next) => {
   });
 });
 
-app.listen(PORT, () => {
-  console.log(`🚀 Servidor Monetty corriendo en puerto ${PORT}`);
-});
+// Conectar a PostgreSQL con Sequelize y luego iniciar servidor
+const startServer = async () => {
+  try {
+    await sequelize.authenticate();
+    console.log('📦 Conectado a PostgreSQL con Sequelize');
+
+    // Sincronizar modelos (crea tablas si no existen)
+    await sequelize.sync({ alter: false });
+    console.log('✅ Modelos sincronizados');
+
+    app.listen(PORT, () => {
+      console.log(`🚀 Servidor Monetty corriendo en puerto ${PORT}`);
+    });
+  } catch (error) {
+    console.error('❌ Error al conectar con la base de datos:', error.message);
+    process.exit(1);
+  }
+};
+
+startServer();
 
 module.exports = app;
