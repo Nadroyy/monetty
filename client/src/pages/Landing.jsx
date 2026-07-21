@@ -177,6 +177,9 @@ const Landing = () => {
             </div>
             <span className="text-sm font-medium text-gray-400">Monetty</span>
           </div>
+          <Link to="/about" className="text-sm text-gray-400 hover:text-green-400 transition">
+            Acerca de
+          </Link>
           <p className="text-sm text-gray-500">
             © 2026 Monetty. Proyecto educativo FESC.
           </p>
