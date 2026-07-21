@@ -1,0 +1,444 @@
+================================================================================
+MONETTY - EXPLICACIÓN COMPLETA DEL PROYECTO
+Gestor de Finanzas Personales - Full Stack
+================================================================================
+
+================================================================================
+1. ¿QUÉ ES MONETTY?
+================================================================================
+
+Monetty es una aplicación web de finanzas personales que permite a los usuarios:
+- Registrar ingresos y gastos
+- Controlar pagos pendientes (deudas, cuotas)
+- Establecer un presupuesto mensual
+- Ver gráficos de gastos por categoría
+- Proyectar su balance financiero a futuro
+
+Es una aplicación Full Stack: tiene un frontend (lo que ve el usuario), un backend 
+(la lógica del servidor) y una base de datos (donde se guardan los datos).
+
+
+================================================================================
+2. ARQUITECTURA GENERAL
+================================================================================
+
+El proyecto tiene 3 capas:
+
+    ┌─────────────────┐         ┌─────────────────┐         ┌─────────────────┐
+    │    FRONTEND     │  HTTP   │     BACKEND     │   SQL   │  BASE DE DATOS  │
+    │   (React App)   │ ──────► │  (Express API)  │ ──────► │  (PostgreSQL)   │
+    │  Puerto: 5173   │ ◄────── │  Puerto: 5000   │ ◄────── │  Puerto: 5432   │
+    └─────────────────┘  JSON   └─────────────────┘  Datos  └─────────────────┘
+
+Flujo de una operación (ejemplo: crear un gasto):
+1. El usuario llena un formulario en React y da "Guardar"
+2. React envía una petición HTTP POST con los datos en formato JSON al backend
+3. Express recibe la petición, valida los datos, y usa Sequelize para guardarlos
+4. Sequelize traduce la operación a SQL y la envía a PostgreSQL
+5. PostgreSQL guarda el registro y confirma
+6. Express responde al frontend con el registro creado
+7. React actualiza la interfaz mostrando el nuevo gasto
+
+
+================================================================================
+3. FRONTEND - React
+================================================================================
+
+TECNOLOGÍAS:
+- React 18: Librería para construir interfaces de usuario con componentes
+- Vite 5: Herramienta que sirve y compila la aplicación (muy rápido)
+- Tailwind CSS 3: Framework de estilos con clases utilitarias (responsive)
+- React Router DOM 6: Maneja la navegación entre páginas sin recargar
+- Axios: Librería para hacer peticiones HTTP al backend
+- Lucide React: Iconos SVG como componentes
+
+ESTRUCTURA DE ARCHIVOS:
+client/src/
+├── pages/          → Las "pantallas" de la app (6 páginas)
+│   ├── Landing.jsx      → Página de inicio (pública)
+│   ├── Login.jsx        → Formulario de inicio de sesión
+│   ├── Register.jsx     → Formulario de registro
+│   ├── Dashboard.jsx    → Panel principal (protegida, necesita login)
+│   ├── Profile.jsx      → Perfil del usuario
+│   └── About.jsx        → Acerca de (stack, arquitectura)
+│
+├── components/     → Piezas reutilizables de la interfaz
+│   ├── Header.jsx            → Barra de navegación (Navbar)
+│   ├── Summary.jsx           → Tarjetas de resumen (Cards)
+│   ├── TransactionForm.jsx   → Formulario de crear/editar movimiento
+│   ├── TransactionList.jsx   → Tabla/lista de movimientos
+│   ├── PendingPaymentForm.jsx → Formulario de pagos pendientes
+│   ├── PendingPaymentList.jsx → Lista de pagos pendientes
+│   ├── Filters.jsx           → Filtros por categoría, tipo, fecha
+│   ├── CategoryChart.jsx     → Gráfico de barras por categoría
+│   ├── MonthlyIncomeSetup.jsx → Configurar ingreso fijo
+│   ├── ProtectedRoute.jsx    → Guardia de ruta (redirige si no hay sesión)
+│   └── SkeletonRow.jsx       → Loader/skeleton mientras carga
+│
+├── context/        → Estado global compartido entre componentes
+│   ├── AuthContext.jsx        → Login, logout, registro, sesión
+│   ├── TransactionContext.jsx → CRUD de transacciones + filtros
+│   └── PendingContext.jsx     → CRUD de pagos pendientes
+│
+├── services/
+│   └── api.js      → Instancia de Axios configurada
+│
+└── utils/
+    ├── format.js    → Funciones: formatCurrency, formatDate, etc.
+    └── constants.js → Categorías, colores, configuraciones
+
+¿CÓMO FUNCIONA LA NAVEGACIÓN?
+- App.jsx define todas las rutas con React Router
+- Las rutas /dashboard y /profile están envueltas en <ProtectedRoute>
+- ProtectedRoute revisa si hay un usuario autenticado
+- Si no hay sesión → redirige a /login
+- Si hay sesión → muestra el contenido
+
+¿CÓMO SE COMUNICA CON EL BACKEND?
+- El archivo services/api.js crea una instancia de Axios con:
+  * baseURL: http://localhost:5000/api (la dirección del backend)
+  * Interceptor de REQUEST: automáticamente agrega el token JWT a cada petición
+  * Interceptor de RESPONSE: si recibe un 401 (no autorizado), limpia la sesión
+
+- Los Context providers (AuthContext, TransactionContext, PendingContext) usan
+  esta instancia para hacer las llamadas:
+  * api.get('/transactions')         → Consultar
+  * api.post('/transactions', data)  → Crear
+  * api.put('/transactions/5', data) → Editar
+  * api.delete('/transactions/5')    → Eliminar
+
+¿CÓMO FUNCIONAN LAS VALIDACIONES EN EL FRONTEND?
+- Validaciones HTML5: required, minLength, maxLength, type="email", min, max
+- Validaciones en JavaScript: comparar contraseñas, verificar montos > 0
+- Errores del backend se muestran en alertas rojas dentro del formulario
+
+¿CÓMO ES RESPONSIVE?
+- Tailwind CSS usa breakpoints: sm: (640px+), md: (768px+), lg: (1024px+)
+- La tabla de transacciones se oculta en móvil (hidden md:block) y se muestra
+  como tarjetas (md:hidden)
+- Los grids cambian: grid-cols-1 en móvil → grid-cols-2 en tablet → grid-cols-4 en desktop
+
+
+================================================================================
+4. BACKEND - Node.js + Express
+================================================================================
+
+TECNOLOGÍAS:
+- Node.js: Entorno que permite ejecutar JavaScript en el servidor
+- Express 4: Framework web para crear APIs REST
+- Sequelize: ORM (Object-Relational Mapping) para interactuar con PostgreSQL
+- JWT (jsonwebtoken): Tokens para autenticación sin estado (stateless)
+- bcryptjs: Encriptación de contraseñas
+- express-validator: Validación de datos de entrada
+- cors: Permite que el frontend (otro puerto) se comunique con el backend
+- dotenv: Carga variables de entorno desde archivo .env
+
+ESTRUCTURA DE ARCHIVOS:
+server/src/
+├── index.js            → Punto de entrada: configura Express, rutas, inicia servidor
+├── config/
+│   └── database.js     → Configuración de conexión a PostgreSQL para Sequelize
+├── models/
+│   ├── index.js        → Crea la instancia Sequelize y define relaciones
+│   ├── User.js         → Modelo de usuario (campos, validaciones)
+│   ├── Transaction.js  → Modelo de transacción
+│   └── PendingPayment.js → Modelo de pago pendiente
+├── migrations/
+│   ├── 20240101000001-create-users.js
+│   ├── 20240101000002-create-transactions.js
+│   └── 20240101000003-create-pending-payments.js
+├── seeders/
+│   └── 20240101000001-demo-user.js  → Datos iniciales de prueba
+├── controllers/
+│   ├── auth.controller.js        → Lógica de registro, login, perfil
+│   ├── transaction.controller.js → Lógica CRUD de transacciones
+│   └── pending.controller.js     → Lógica CRUD de pagos pendientes
+├── routes/
+│   ├── auth.routes.js         → Define endpoints /api/auth/*
+│   ├── transaction.routes.js  → Define endpoints /api/transactions/*
+│   └── pending.routes.js      → Define endpoints /api/pending-payments/*
+├── middleware/
+│   ├── auth.middleware.js     → Verifica el token JWT en cada petición protegida
+│   └── validate.middleware.js → Procesa errores de express-validator
+└── database/
+    ├── schema.sql  → Script SQL de referencia (PostgreSQL)
+    └── init.js     → Script legacy para crear tablas
+
+ARQUITECTURA POR CAPAS (flujo de una petición):
+
+  Petición HTTP → Ruta → Middleware → Controlador → Modelo (Sequelize) → PostgreSQL
+                                                                              ↓
+  Respuesta JSON ← Controlador ←──────────────────────────── Resultado ←──────
+
+Ejemplo: POST /api/transactions (crear un gasto)
+1. RUTA (transaction.routes.js): Define que POST '/' va al controlador createTransaction
+   También define las validaciones con express-validator
+2. MIDDLEWARE validate: Revisa si hay errores de validación, si hay → responde 400
+3. MIDDLEWARE auth: Verifica el token JWT, extrae el usuario (req.user = {id, email})
+4. CONTROLADOR (transaction.controller.js): 
+   - Recibe los datos del body (type, amount, category, description, date)
+   - Llama a Transaction.create({...}) de Sequelize
+   - Responde con el registro creado y status 201
+
+¿CÓMO FUNCIONA LA AUTENTICACIÓN (JWT)?
+1. Usuario se registra o hace login → el servidor genera un token JWT
+2. El token contiene: {id: 2, email: "david@test.com"} + firma secreta
+3. El frontend guarda el token en localStorage
+4. En cada petición, Axios agrega el header: Authorization: Bearer <token>
+5. El middleware auth.middleware.js:
+   - Extrae el token del header
+   - Lo verifica con jwt.verify() y la clave secreta del .env
+   - Si es válido → agrega req.user = {id, email} y deja pasar
+   - Si es inválido → responde 401 (no autorizado)
+
+¿CÓMO FUNCIONAN LAS VALIDACIONES EN EL BACKEND?
+- express-validator se usa en las RUTAS (antes del controlador):
+  * body('amount').isFloat({min: 0.01}).withMessage('El monto debe ser mayor a 0')
+  * body('email').isEmail().withMessage('Debe ser un correo válido')
+  * body('category').isIn(['Comida','Transporte',...])
+- validate.middleware.js revisa si hubo errores y responde 400 con mensajes claros
+- Los modelos Sequelize también tienen validaciones como segunda capa de seguridad
+
+MANEJO DE ERRORES:
+- Cada controlador tiene try/catch
+- Error global en index.js (app.use((err, req, res, next) => {...}))
+- Códigos HTTP usados:
+  * 200 → OK (consulta o edición exitosa)
+  * 201 → Creado (registro nuevo)
+  * 400 → Error de validación (datos incorrectos)
+  * 401 → No autorizado (token inválido o faltante)
+  * 404 → No encontrado (registro no existe)
+  * 500 → Error interno del servidor
+
+
+================================================================================
+5. BASE DE DATOS - PostgreSQL + Sequelize
+================================================================================
+
+¿QUÉ ES POSTGRESQL?
+- Sistema de gestión de bases de datos relacional (RDBMS)
+- Almacena datos en tablas con filas y columnas
+- Soporta SQL, tipos de datos avanzados, restricciones, índices
+- Corre como servicio en el puerto 5432
+
+¿QUÉ ES SEQUELIZE?
+- Es un ORM (Object-Relational Mapping)
+- Traduce operaciones de JavaScript a consultas SQL
+- En vez de escribir SQL directamente, usas métodos como:
+  * User.findAll()          → SELECT * FROM users
+  * User.create({name:..}) → INSERT INTO users (name,...) VALUES (...)
+  * User.update({...})      → UPDATE users SET ... WHERE ...
+  * User.destroy({where:}) → DELETE FROM users WHERE ...
+- También maneja migraciones (cambios en la estructura de la BD)
+
+¿CÓMO SE CONECTA?
+1. En server/.env está la URL de conexión:
+   DATABASE_URL=postgresql://postgres:123456@localhost:5432/monetty
+   
+   Esto significa:
+   - postgres → usuario de PostgreSQL
+   - 123456 → contraseña
+   - localhost → servidor local
+   - 5432 → puerto de PostgreSQL
+   - monetty → nombre de la base de datos
+
+2. En src/config/database.js se exporta la configuración para Sequelize
+
+3. En src/models/index.js:
+   - Se crea la instancia: new Sequelize(url, opciones)
+   - Se importan los 3 modelos
+   - Se definen las relaciones (User.hasMany(Transaction), etc.)
+
+4. En src/index.js al iniciar el servidor:
+   - sequelize.authenticate() → prueba la conexión
+   - sequelize.sync() → crea tablas si no existen
+
+MODELO RELACIONAL (3 tablas):
+
+┌─────────────────────────────────────────────────────────────────┐
+│                          users                                   │
+├─────────────────────────────────────────────────────────────────┤
+│ id (PK, SERIAL)                                                  │
+│ name (VARCHAR 100, NOT NULL)                                     │
+│ email (VARCHAR 150, UNIQUE, NOT NULL)                            │
+│ password (VARCHAR 255, NOT NULL)                                 │
+│ monthly_income (DECIMAL 12,2, NULL)                              │
+│ created_at (TIMESTAMP, DEFAULT NOW)                              │
+└──────────────────────┬──────────────────────────────────────────┘
+                       │
+                       │ 1:N (un usuario tiene muchas transacciones)
+                       │ 1:N (un usuario tiene muchos pagos pendientes)
+                       │
+    ┌──────────────────┴───────────────────┐
+    │                                      │
+    ▼                                      ▼
+┌──────────────────────────┐   ┌────────────────────────────────┐
+│      transactions        │   │       pending_payments          │
+├──────────────────────────┤   ├────────────────────────────────┤
+│ id (PK, SERIAL)         │   │ id (PK, SERIAL)                │
+│ user_id (FK → users.id) │   │ user_id (FK → users.id)        │
+│ type (ENUM: income/      │   │ description (VARCHAR 255)      │
+│       expense)           │   │ total_amount (DECIMAL 12,2)    │
+│ amount (DECIMAL 12,2)    │   │ installment_amount (DEC 12,2)  │
+│ category (ENUM: 8 vals)  │   │ total_installments (INTEGER)   │
+│ description (VARCHAR 255)│   │ paid_installments (INTEGER)    │
+│ date (DATE)              │   │ frequency (VARCHAR 20)         │
+│ created_at (TIMESTAMP)   │   │ due_date (DATE)                │
+└──────────────────────────┘   │ category (ENUM: 8 vals)        │
+                               │ created_at (TIMESTAMP)         │
+                               └────────────────────────────────┘
+
+RELACIONES:
+- users (1) → transactions (N): Un usuario puede tener muchas transacciones
+- users (1) → pending_payments (N): Un usuario puede tener muchos pagos pendientes
+- Si se elimina un usuario, se eliminan todos sus registros (ON DELETE CASCADE)
+
+En Sequelize esto se define así:
+  User.hasMany(Transaction, { foreignKey: 'user_id', onDelete: 'CASCADE' })
+  Transaction.belongsTo(User, { foreignKey: 'user_id' })
+
+RESTRICCIONES:
+- PRIMARY KEY: id en cada tabla (autoincremental)
+- FOREIGN KEY: user_id referencia a users.id
+- UNIQUE: email en users (no puede haber dos iguales)
+- NOT NULL: campos obligatorios
+- CHECK: amount > 0, total_installments >= 1, type IN ('income','expense')
+- DEFAULT: created_at = NOW, paid_installments = 0
+- ENUM: type solo puede ser 'income' o 'expense', category solo 8 valores
+- INDEXES: Para acelerar consultas (user_id, date, category, type, due_date)
+
+MIGRACIONES:
+- Son archivos que describen cambios en la estructura de la BD
+- Se ejecutan con: npm run db:migrate
+- Se pueden revertir con: npm run db:migrate:undo
+- Están en: server/src/migrations/
+- Cada migración tiene un método up() (aplicar) y down() (revertir)
+
+SEEDERS:
+- Datos iniciales de prueba
+- Se ejecutan con: npm run db:seed
+- Creamos un usuario demo: demo@monetty.com / 123456
+
+
+================================================================================
+6. API REST - ENDPOINTS
+================================================================================
+
+Base URL: http://localhost:5000/api
+
+┌─────────┬──────────────────────────────┬───────────────────────────────────────┐
+│ MÉTODO  │ ENDPOINT                     │ DESCRIPCIÓN                           │
+├─────────┼──────────────────────────────┼───────────────────────────────────────┤
+│ POST    │ /auth/register               │ Registrar nuevo usuario               │
+│ POST    │ /auth/login                  │ Iniciar sesión (devuelve JWT)         │
+│ GET     │ /auth/me                     │ Obtener datos del usuario actual      │
+│ PUT     │ /auth/monthly-income         │ Actualizar ingreso mensual            │
+├─────────┼──────────────────────────────┼───────────────────────────────────────┤
+│ GET     │ /transactions                │ Listar transacciones (con filtros)    │
+│ POST    │ /transactions                │ Crear nueva transacción               │
+│ PUT     │ /transactions/:id            │ Editar una transacción                │
+│ DELETE  │ /transactions/:id            │ Eliminar una transacción              │
+├─────────┼──────────────────────────────┼───────────────────────────────────────┤
+│ GET     │ /pending-payments            │ Listar pagos pendientes               │
+│ POST    │ /pending-payments            │ Crear pago pendiente                  │
+│ PUT     │ /pending-payments/:id        │ Editar pago pendiente                 │
+│ PUT     │ /pending-payments/:id/pay    │ Registrar cuota pagada                │
+│ DELETE  │ /pending-payments/:id        │ Eliminar pago pendiente               │
+└─────────┴──────────────────────────────┴───────────────────────────────────────┘
+
+FORMATO DE RESPUESTA (siempre):
+{
+  "success": true/false,
+  "message": "Mensaje descriptivo",
+  "data": { ... }  ← solo si success es true
+}
+
+EJEMPLO - Crear transacción:
+  Petición: POST /api/transactions
+  Headers: Authorization: Bearer eyJhbGciOi...
+  Body: {
+    "type": "expense",
+    "amount": 50000,
+    "category": "Comida",
+    "description": "Almuerzo restaurante",
+    "date": "2026-07-21"
+  }
+  Respuesta (201): {
+    "success": true,
+    "message": "Transacción creada exitosamente.",
+    "data": {
+      "transaction": {
+        "id": 1,
+        "user_id": 2,
+        "type": "expense",
+        "amount": "50000.00",
+        "category": "Comida",
+        "description": "Almuerzo restaurante",
+        "date": "2026-07-21",
+        "created_at": "2026-07-21T20:31:52.049Z"
+      }
+    }
+  }
+
+
+================================================================================
+7. ¿CÓMO SE EJECUTA EL PROYECTO?
+================================================================================
+
+PRERREQUISITOS:
+- Node.js 18+ instalado
+- PostgreSQL 17 instalado y corriendo
+- Base de datos "monetty" creada en pgAdmin
+
+PASOS:
+
+1. Backend:
+   cd server
+   npm install                  ← Instala dependencias
+   npm run db:migrate           ← Crea las tablas en PostgreSQL
+   npm run db:seed              ← (Opcional) Carga usuario demo
+   node src/index.js            ← Inicia el servidor en puerto 5000
+
+2. Frontend:
+   cd client
+   npm install                  ← Instala dependencias
+   npx vite --host             ← Inicia la app en puerto 5173
+
+3. Abrir en el navegador: http://localhost:5173
+
+
+================================================================================
+8. RESUMEN PARA LA EXPOSICIÓN
+================================================================================
+
+PUNTOS CLAVE A MENCIONAR:
+
+1. "Es una app Full Stack con React en el frontend, Express en el backend y 
+    PostgreSQL como base de datos, usando Sequelize como ORM."
+
+2. "La autenticación se hace con JWT: el usuario hace login, recibe un token,
+    y ese token se envía automáticamente en cada petición protegida."
+
+3. "Usamos Sequelize para no escribir SQL directamente. Los modelos definen 
+    la estructura de las tablas y sus validaciones. Las migraciones controlan
+    los cambios en la base de datos."
+
+4. "El frontend consume la API REST con Axios. Tiene interceptors que agregan
+    el token automáticamente y manejan errores de sesión."
+
+5. "Tenemos 2 CRUDs completos: transacciones y pagos pendientes. Ambos permiten
+    crear, consultar, editar y eliminar desde la interfaz."
+
+6. "Las validaciones están en dos niveles: en el frontend con HTML5 y JavaScript,
+    y en el backend con express-validator y validaciones de Sequelize."
+
+7. "La app es responsive: funciona en computador, tablet y celular gracias a 
+    Tailwind CSS y sus breakpoints."
+
+8. "Las relaciones en la BD son 1:N — un usuario tiene muchas transacciones y 
+    muchos pagos pendientes, definidas con hasMany y belongsTo en Sequelize."
+
+
+================================================================================
+FIN
+================================================================================
