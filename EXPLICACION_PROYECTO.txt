@@ -385,6 +385,18 @@ EJEMPLO - Crear transacción:
 7. ¿CÓMO SE EJECUTA EL PROYECTO?
 ================================================================================
 
+EN PRODUCCIÓN (ya desplegado):
+- Frontend: https://monetty.vercel.app
+- Backend: https://monetty.onrender.com
+- Base de datos: PostgreSQL en Render
+
+Es una PWA instalable en celulares:
+- Abrir https://monetty.vercel.app en Chrome del celular
+- Menú ⋮ → "Instalar aplicación"
+- Se instala con icono propio, pantalla completa, como app nativa
+
+EN DESARROLLO LOCAL:
+
 PRERREQUISITOS:
 - Node.js 18+ instalado
 - PostgreSQL 17 instalado y corriendo

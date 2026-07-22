@@ -1,0 +1,516 @@
+================================================================================
+MONETTY - DOCUMENTO DE ENTREGA
+Gestor de Finanzas Personales
+================================================================================
+
+
+================================================================================
+1. METODOLOGÍA
+================================================================================
+
+METODOLOGÍA UTILIZADA: Desarrollo Iterativo-Incremental con Kanban adaptado
+
+Se adoptó un enfoque iterativo-incremental con principios de Kanban adaptados
+a un equipo pequeño en contexto académico. No se implementó Scrum completo ya
+que no había un equipo grande con roles definidos (PO, SM, Dev Team), ni se
+realizaron ceremonias formales (dailys, planning, retrospectivas).
+
+¿POR QUÉ KANBAN ADAPTADO?
+- Equipo pequeño (1-2 personas) donde Scrum sería excesivo
+- No se requieren sprints fijos; se avanza por flujo continuo de tareas
+- La priorización se hace de forma natural según la entrega académica
+- Se adapta bien a un proyecto que evoluciona incrementalmente
+
+PRINCIPIOS KANBAN APLICADOS:
+- Limitar el trabajo en progreso (una funcionalidad a la vez)
+- Flujo continuo: completar una característica antes de empezar la siguiente
+- Mejora continua: refactorizar código existente al agregar funcionalidades
+- Visualización del progreso mediante commits en Git
+
+FASES DE DESARROLLO (iteraciones):
+1. Primera iteración: Estructura base, autenticación, CRUD de transacciones (SQLite)
+2. Segunda iteración: Pagos pendientes, balance estimado, ingreso mensual fijo
+3. Tercera iteración: Migración a PostgreSQL + Sequelize, páginas adicionales
+4. Cuarta iteración: Documentación, ajustes finales, preparación para entrega
+
+ORGANIZACIÓN DEL PROYECTO:
+- Monorepo con separación clara: /client (frontend) y /server (backend)
+- Repositorio Git con rama de desarrollo (feature/mejoras-monetty)
+- Commits frecuentes con convención semántica: feat:, fix:, refactor:, docs:
+- Push a GitHub como respaldo y entrega
+- No se usó tablero visual externo (Trello/Jira) — el control fue mediante
+  el historial de commits y la estructura de archivos del proyecto
+
+HERRAMIENTAS EMPLEADAS:
+
+Desarrollo:
+- Visual Studio Code (Kiro): Editor de código con asistente IA integrado
+- Node.js 24: Entorno de ejecución para JavaScript en el servidor
+- npm: Gestor de paquetes y scripts de automatización
+- Vite 5: Servidor de desarrollo con hot-reload para React
+- nodemon: Hot-reload para el backend durante desarrollo
+
+Control de versiones:
+- Git: Control de versiones local (ramas, commits, merge)
+- GitHub: Repositorio remoto, historial público del proyecto
+
+Base de datos:
+- PostgreSQL 17: Motor de base de datos relacional
+- pgAdmin 4: Interfaz gráfica para administrar PostgreSQL
+- Sequelize CLI: Migraciones y seeders por línea de comandos
+
+Pruebas y debugging:
+- Chrome DevTools: Inspección del frontend, Network tab para peticiones
+- Terminal/PowerShell: Ejecución de comandos, pruebas con curl
+- Consola de Node.js: Logs del backend para depuración
+
+Diseño y estilos:
+- Tailwind CSS: Framework de estilos utilitarios (sin diseño previo en Figma)
+- Responsive design directo en código con breakpoints de Tailwind
+
+
+================================================================================
+2. ANÁLISIS DE REQUISITOS
+================================================================================
+
+--- REQUISITOS FUNCIONALES ---
+
+RF-01: El sistema debe permitir registrar nuevos usuarios con nombre, email y contraseña.
+RF-02: El sistema debe permitir iniciar sesión con email y contraseña.
+RF-03: El sistema debe mantener la sesión activa mediante token JWT (7 días).
+RF-04: El sistema debe permitir cerrar sesión eliminando el token.
+RF-05: El sistema debe permitir configurar un ingreso mensual fijo.
+RF-06: El sistema debe permitir registrar transacciones (ingresos y gastos).
+RF-07: El sistema debe permitir editar transacciones existentes.
+RF-08: El sistema debe permitir eliminar transacciones.
+RF-09: El sistema debe permitir filtrar transacciones por categoría, tipo y rango de fechas.
+RF-10: El sistema debe permitir registrar pagos pendientes (deudas/cuotas).
+RF-11: El sistema debe permitir registrar cuotas pagadas en un pago pendiente.
+RF-12: El sistema debe permitir editar y eliminar pagos pendientes.
+RF-13: El sistema debe calcular y mostrar el balance actual (ingresos - gastos - deudas).
+RF-14: El sistema debe mostrar un gráfico de gastos por categoría.
+RF-15: El sistema debe mostrar una barra de presupuesto mensual.
+RF-16: El sistema debe proyectar un balance estimado a futuro.
+
+--- REQUISITOS NO FUNCIONALES ---
+
+RNF-01: La aplicación debe ser responsive (funcionar en móvil, tablet y escritorio).
+RNF-02: Los tiempos de respuesta de la API no deben exceder 500ms.
+RNF-03: Las contraseñas deben almacenarse encriptadas con bcrypt (salt 10 rounds).
+RNF-04: La API debe validar todos los datos de entrada antes de procesarlos.
+RNF-05: La interfaz debe ser intuitiva y no requerir manual de usuario.
+RNF-06: El sistema debe manejar errores con mensajes claros en español.
+RNF-07: La base de datos debe usar índices para optimizar consultas frecuentes.
+RNF-08: El token JWT debe expirar en 7 días por seguridad.
+
+--- HISTORIAS DE USUARIO ---
+
+HU-01: Como usuario nuevo, quiero registrarme con mi nombre, email y contraseña
+       para poder acceder al sistema.
+       CRITERIOS DE ACEPTACIÓN:
+       - El email debe ser único (no duplicados)
+       - La contraseña debe tener mínimo 6 caracteres
+       - Al registrarse, se inicia sesión automáticamente
+       - Se muestra error si el email ya existe
+
+HU-02: Como usuario registrado, quiero iniciar sesión con mi email y contraseña
+       para acceder a mi información financiera.
+       CRITERIOS DE ACEPTACIÓN:
+       - Credenciales inválidas muestran mensaje de error
+       - Al iniciar sesión se redirige al dashboard
+       - La sesión se mantiene al recargar la página (token en localStorage)
+
+HU-03: Como usuario autenticado, quiero registrar un gasto o ingreso
+       para llevar el control de mis finanzas.
+       CRITERIOS DE ACEPTACIÓN:
+       - Debo indicar tipo (ingreso/gasto), monto, categoría, descripción y fecha
+       - El monto debe ser mayor a 0
+       - La transacción aparece inmediatamente en la lista
+       - Se actualiza el balance automáticamente
+
+HU-04: Como usuario autenticado, quiero editar una transacción existente
+       para corregir errores en mis registros.
+       CRITERIOS DE ACEPTACIÓN:
+       - Se abre un formulario prellenado con los datos actuales
+       - Solo puedo editar mis propias transacciones
+       - Los cambios se reflejan inmediatamente
+
+HU-05: Como usuario autenticado, quiero eliminar una transacción
+       para quitar registros que ya no necesito.
+       CRITERIOS DE ACEPTACIÓN:
+       - Se pide confirmación antes de eliminar
+       - La transacción desaparece de la lista
+       - El balance se recalcula
+
+HU-06: Como usuario autenticado, quiero filtrar mis transacciones
+       para encontrar movimientos específicos.
+       CRITERIOS DE ACEPTACIÓN:
+       - Puedo filtrar por categoría, tipo (ingreso/gasto) y rango de fechas
+       - Los filtros se pueden limpiar
+       - La lista se actualiza en tiempo real
+
+HU-07: Como usuario autenticado, quiero registrar un pago pendiente (deuda)
+       para controlar mis obligaciones financieras.
+       CRITERIOS DE ACEPTACIÓN:
+       - Debo indicar descripción, monto total, número de cuotas, frecuencia y fecha límite
+       - Se calcula automáticamente el monto por cuota
+       - El pago aparece en la lista con estado "activo"
+
+HU-08: Como usuario autenticado, quiero registrar cuotas pagadas
+       para ver el progreso de mis deudas.
+       CRITERIOS DE ACEPTACIÓN:
+       - Al pagar una cuota, se incrementa el contador
+       - Cuando se completan todas las cuotas, el estado cambia a "completado"
+       - Se muestra barra de progreso visual
+
+HU-09: Como usuario autenticado, quiero configurar mi ingreso mensual fijo
+       para ver cuánto presupuesto me queda disponible.
+       CRITERIOS DE ACEPTACIÓN:
+       - Puedo establecer, editar o eliminar el ingreso fijo
+       - Se muestra una barra de progreso del presupuesto
+       - El balance se recalcula incluyendo el ingreso fijo
+
+HU-10: Como usuario autenticado, quiero ver un resumen visual de mis finanzas
+       para entender mi situación económica rápidamente.
+       CRITERIOS DE ACEPTACIÓN:
+       - Se muestra balance actual, ingresos, gastos y balance estimado
+       - Se muestra gráfico de gastos por categoría
+       - Se muestra alerta si el balance es negativo
+
+
+================================================================================
+3. DISEÑO
+================================================================================
+
+--- DIAGRAMA DE CASOS DE USO ---
+
+Actor: Usuario (persona que usa la aplicación)
+
+                    ┌─────────────────────────────────────────┐
+                    │           SISTEMA MONETTY                │
+                    │                                         │
+  ┌──────┐         │  ┌─────────────────────┐                │
+  │      │────────►│  │ Registrarse         │                │
+  │      │         │  └─────────────────────┘                │
+  │      │────────►│  ┌─────────────────────┐                │
+  │      │         │  │ Iniciar sesión      │                │
+  │      │         │  └─────────────────────┘                │
+  │      │────────►│  ┌─────────────────────┐                │
+  │      │         │  │ Cerrar sesión       │                │
+  │ USER │         │  └─────────────────────┘                │
+  │      │────────►│  ┌─────────────────────┐                │
+  │      │         │  │ Gestionar           │                │
+  │      │         │  │ transacciones (CRUD)│                │
+  │      │         │  └─────────────────────┘                │
+  │      │────────►│  ┌─────────────────────┐                │
+  │      │         │  │ Gestionar pagos     │                │
+  │      │         │  │ pendientes (CRUD)   │                │
+  │      │         │  └─────────────────────┘                │
+  │      │────────►│  ┌─────────────────────┐                │
+  │      │         │  │ Configurar ingreso  │                │
+  │      │         │  │ mensual             │                │
+  │      │         │  └─────────────────────┘                │
+  │      │────────►│  ┌─────────────────────┐                │
+  │      │         │  │ Ver resumen y       │                │
+  │      │         │  │ gráficos            │                │
+  └──────┘         │  └─────────────────────┘                │
+                    │                                         │
+                    └─────────────────────────────────────────┘
+
+Casos de uso detallados:
+- CU01: Registrarse → Crear cuenta con nombre, email, contraseña
+- CU02: Iniciar sesión → Autenticarse para acceder al sistema
+- CU03: Cerrar sesión → Eliminar token y redirigir al login
+- CU04: CRUD Transacciones → Crear, consultar, editar, eliminar movimientos
+- CU05: CRUD Pagos pendientes → Crear, consultar, editar, eliminar, pagar cuota
+- CU06: Configurar ingreso → Establecer ingreso fijo mensual
+- CU07: Ver resumen → Dashboard con balance, gráficos, alertas
+
+--- MODELO ENTIDAD-RELACIÓN ---
+
+┌─────────────┐         1:N         ┌──────────────────┐
+│    USER     │─────────────────────►│   TRANSACTION    │
+│             │                      │                  │
+│ id (PK)     │                      │ id (PK)          │
+│ name        │                      │ user_id (FK)     │
+│ email       │                      │ type             │
+│ password    │                      │ amount           │
+│ monthly_    │                      │ category         │
+│   income    │                      │ description      │
+│ created_at  │                      │ date             │
+└─────────────┘                      │ created_at       │
+       │                             └──────────────────┘
+       │
+       │              1:N         ┌──────────────────────┐
+       └────────────────────────►│   PENDING_PAYMENT     │
+                                 │                       │
+                                 │ id (PK)               │
+                                 │ user_id (FK)          │
+                                 │ description           │
+                                 │ total_amount          │
+                                 │ installment_amount    │
+                                 │ total_installments    │
+                                 │ paid_installments     │
+                                 │ frequency             │
+                                 │ due_date              │
+                                 │ category              │
+                                 │ created_at            │
+                                 └───────────────────────┘
+
+Cardinalidad:
+- Un USER puede tener 0 o muchos TRANSACTIONS (1:N)
+- Un USER puede tener 0 o muchos PENDING_PAYMENTS (1:N)
+- Un TRANSACTION pertenece a exactamente 1 USER
+- Un PENDING_PAYMENT pertenece a exactamente 1 USER
+
+
+--- MODELO RELACIONAL ---
+
+users (id PK, name, email UNIQUE, password, monthly_income, created_at)
+transactions (id PK, user_id FK→users.id, type, amount, category, description, date, created_at)
+pending_payments (id PK, user_id FK→users.id, description, total_amount, installment_amount, total_installments, paid_installments, frequency, due_date, category, created_at)
+
+--- DICCIONARIO DE DATOS ---
+
+TABLA: users
+┌───────────────┬──────────────┬──────────┬─────────────────────────────────────┐
+│ Campo         │ Tipo         │ Nulo     │ Descripción                         │
+├───────────────┼──────────────┼──────────┼─────────────────────────────────────┤
+│ id            │ SERIAL       │ NO (PK)  │ Identificador único del usuario     │
+│ name          │ VARCHAR(100) │ NO       │ Nombre completo del usuario         │
+│ email         │ VARCHAR(150) │ NO (UQ)  │ Correo electrónico (único)          │
+│ password      │ VARCHAR(255) │ NO       │ Contraseña encriptada (bcrypt)      │
+│ monthly_income│ DECIMAL(12,2)│ SÍ       │ Ingreso fijo mensual (nullable)     │
+│ created_at    │ TIMESTAMP    │ NO       │ Fecha de creación de la cuenta      │
+└───────────────┴──────────────┴──────────┴─────────────────────────────────────┘
+
+TABLA: transactions
+┌───────────────┬──────────────┬──────────┬─────────────────────────────────────┐
+│ Campo         │ Tipo         │ Nulo     │ Descripción                         │
+├───────────────┼──────────────┼──────────┼─────────────────────────────────────┤
+│ id            │ SERIAL       │ NO (PK)  │ Identificador único                 │
+│ user_id       │ INTEGER      │ NO (FK)  │ Referencia al usuario propietario   │
+│ type          │ ENUM         │ NO       │ 'income' o 'expense'                │
+│ amount        │ DECIMAL(12,2)│ NO       │ Monto (debe ser > 0)                │
+│ category      │ ENUM         │ NO       │ Categoría (8 opciones)              │
+│ description   │ VARCHAR(255) │ NO       │ Descripción del movimiento          │
+│ date          │ DATE         │ NO       │ Fecha del movimiento                │
+│ created_at    │ TIMESTAMP    │ NO       │ Fecha de creación del registro      │
+└───────────────┴──────────────┴──────────┴─────────────────────────────────────┘
+
+TABLA: pending_payments
+┌────────────────────┬──────────────┬──────────┬─────────────────────────────────┐
+│ Campo              │ Tipo         │ Nulo     │ Descripción                     │
+├────────────────────┼──────────────┼──────────┼─────────────────────────────────┤
+│ id                 │ SERIAL       │ NO (PK)  │ Identificador único             │
+│ user_id            │ INTEGER      │ NO (FK)  │ Referencia al usuario           │
+│ description        │ VARCHAR(255) │ NO       │ Descripción del pago            │
+│ total_amount       │ DECIMAL(12,2)│ NO       │ Monto total de la deuda         │
+│ installment_amount │ DECIMAL(12,2)│ NO       │ Monto de cada cuota             │
+│ total_installments │ INTEGER      │ NO       │ Número total de cuotas          │
+│ paid_installments  │ INTEGER      │ NO       │ Cuotas ya pagadas               │
+│ frequency          │ VARCHAR(20)  │ NO       │ 'once', 'monthly' o 'custom'    │
+│ due_date           │ DATE         │ NO       │ Fecha límite de pago            │
+│ category           │ ENUM         │ NO       │ Categoría (8 opciones)          │
+│ created_at         │ TIMESTAMP    │ NO       │ Fecha de creación del registro  │
+└────────────────────┴──────────────┴──────────┴─────────────────────────────────┘
+
+Categorías disponibles (ENUM):
+Comida, Transporte, Ocio, Sueldo, Servicios, Salud, Educación, Otros
+
+--- ARQUITECTURA DEL SISTEMA ---
+
+DIAGRAMA DE COMPONENTES:
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                              FRONTEND (React)                                │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                             │
+│  ┌──────────┐  ┌──────────┐  ┌──────────┐  ┌──────────┐  ┌──────────┐    │
+│  │  Pages   │  │Components│  │ Context  │  │ Services │  │  Utils   │    │
+│  │          │  │          │  │          │  │          │  │          │    │
+│  │ Landing  │  │ Header   │  │ Auth     │  │ api.js   │  │ format   │    │
+│  │ Login    │  │ Summary  │  │ Trans.   │  │ (Axios)  │  │ constants│    │
+│  │ Register │  │ Forms    │  │ Pending  │  │          │  │          │    │
+│  │ Dashboard│  │ Lists    │  │          │  │          │  │          │    │
+│  │ Profile  │  │ Chart    │  │          │  │          │  │          │    │
+│  │ About    │  │ Filters  │  │          │  │          │  │          │    │
+│  └──────────┘  └──────────┘  └──────────┘  └──────────┘  └──────────┘    │
+│                                    │                                        │
+└────────────────────────────────────┼────────────────────────────────────────┘
+                                     │ HTTP (Axios)
+                                     ▼
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                             BACKEND (Express)                                │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                             │
+│  ┌──────────┐  ┌──────────────┐  ┌──────────────┐  ┌──────────────────┐  │
+│  │  Routes  │  │ Middleware   │  │ Controllers  │  │ Models (Sequelize)│  │
+│  │          │  │              │  │              │  │                   │  │
+│  │ auth     │  │ auth (JWT)   │  │ auth         │  │ User              │  │
+│  │ trans.   │  │ validate     │  │ transaction  │  │ Transaction       │  │
+│  │ pending  │  │ errorHandler │  │ pending      │  │ PendingPayment    │  │
+│  └──────────┘  └──────────────┘  └──────────────┘  └──────────────────┘  │
+│                                                              │              │
+└──────────────────────────────────────────────────────────────┼──────────────┘
+                                                               │ Sequelize ORM
+                                                               ▼
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                          BASE DE DATOS (PostgreSQL)                           │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                             │
+│  ┌──────────────┐    ┌──────────────────┐    ┌────────────────────────┐   │
+│  │    users     │───►│  transactions    │    │   pending_payments     │   │
+│  │              │───►│                  │    │                        │   │
+│  └──────────────┘    └──────────────────┘    └────────────────────────┘   │
+│                                                                             │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+--- DIAGRAMA DE DESPLIEGUE ---
+
+┌─────────────────────────────────────────────────────────────────┐
+│                    COMPUTADOR DEL USUARIO                        │
+│                                                                 │
+│  ┌─────────────────────┐                                       │
+│  │   Navegador Web     │  ← El usuario interactúa aquí         │
+│  │   (Chrome/Firefox)  │                                       │
+│  │   http://localhost:5173                                      │
+│  └──────────┬──────────┘                                       │
+│             │ HTTP Request/Response                             │
+│             ▼                                                   │
+│  ┌─────────────────────┐                                       │
+│  │   Vite Dev Server   │  ← Sirve archivos React compilados    │
+│  │   Puerto: 5173      │                                       │
+│  └─────────────────────┘                                       │
+│                                                                 │
+└─────────────────────────────────────────────────────────────────┘
+              │
+              │ API REST (JSON sobre HTTP)
+              ▼
+┌─────────────────────────────────────────────────────────────────┐
+│                    SERVIDOR LOCAL (misma máquina)                │
+│                                                                 │
+│  ┌─────────────────────┐                                       │
+│  │   Express Server    │  ← Procesa peticiones, lógica de      │
+│  │   Puerto: 5000      │    negocio, autenticación             │
+│  └──────────┬──────────┘                                       │
+│             │ Sequelize (queries SQL)                           │
+│             ▼                                                   │
+│  ┌─────────────────────┐                                       │
+│  │   PostgreSQL 17     │  ← Almacena datos persistentes        │
+│  │   Puerto: 5432      │                                       │
+│  │   BD: monetty       │                                       │
+│  └─────────────────────┘                                       │
+│                                                                 │
+└─────────────────────────────────────────────────────────────────┘
+
+Nota: En desarrollo todo corre en localhost (la misma máquina).
+En producción el proyecto está desplegado en:
+- Frontend → Vercel: https://monetty.vercel.app
+- Backend → Render: https://monetty.onrender.com
+- Base de datos → PostgreSQL en Render (Oregon, US West)
+
+La app es una PWA (Progressive Web App) instalable en celulares:
+- Abrir https://monetty.vercel.app en Chrome del celular
+- Menú ⋮ → "Instalar aplicación"
+- Se instala con icono propio, pantalla completa, sin barra del navegador
+
+Nota: El backend en plan gratuito de Render se "duerme" después de 15 min
+sin actividad. La primera petición tras inactividad tarda ~30s en despertar.
+
+--- DISEÑO DE LA API REST ---
+
+Base URL: http://localhost:5000/api
+Formato de respuesta: JSON
+Autenticación: Bearer Token (JWT) en header Authorization
+
+RECURSO: Auth (Autenticación)
+┌─────────┬───────────────────┬──────────────────────────────────────────────┐
+│ Método  │ Endpoint          │ Parámetros (body)                            │
+├─────────┼───────────────────┼──────────────────────────────────────────────┤
+│ POST    │ /auth/register    │ name, email, password                        │
+│ POST    │ /auth/login       │ email, password                              │
+│ GET     │ /auth/me          │ (ninguno, usa token)                         │
+│ PUT     │ /auth/monthly-    │ monthly_income (number o null)               │
+│         │  income           │                                              │
+└─────────┴───────────────────┴──────────────────────────────────────────────┘
+
+RECURSO: Transactions (Transacciones)
+┌─────────┬───────────────────┬──────────────────────────────────────────────┐
+│ Método  │ Endpoint          │ Parámetros                                   │
+├─────────┼───────────────────┼──────────────────────────────────────────────┤
+│ GET     │ /transactions     │ Query: category, type, startDate, endDate    │
+│ POST    │ /transactions     │ Body: type, amount, category, description,   │
+│         │                   │       date                                   │
+│ PUT     │ /transactions/:id │ Body: type, amount, category, description,   │
+│         │                   │       date                                   │
+│ DELETE  │ /transactions/:id │ (ninguno, solo el :id en la URL)             │
+└─────────┴───────────────────┴──────────────────────────────────────────────┘
+
+RECURSO: Pending Payments (Pagos Pendientes)
+┌─────────┬─────────────────────────┬──────────────────────────────────────────┐
+│ Método  │ Endpoint                │ Parámetros                               │
+├─────────┼─────────────────────────┼──────────────────────────────────────────┤
+│ GET     │ /pending-payments       │ Query: status (active/overdue/completed) │
+│ POST    │ /pending-payments       │ Body: description, total_amount,         │
+│         │                         │   total_installments, frequency,         │
+│         │                         │   due_date, category                     │
+│ PUT     │ /pending-payments/:id   │ Body: (mismos que POST)                  │
+│ PUT     │ /pending-payments/:id/  │ (ninguno, solo el :id)                   │
+│         │  pay                    │                                          │
+│ DELETE  │ /pending-payments/:id   │ (ninguno, solo el :id)                   │
+└─────────┴─────────────────────────┴──────────────────────────────────────────┘
+
+RESPUESTAS ESPERADAS:
+- 200 OK: {"success": true, "message": "...", "data": {...}}
+- 201 Created: {"success": true, "message": "...", "data": {...}}
+- 400 Bad Request: {"success": false, "message": "Error de validación", "errors": [...]}
+- 401 Unauthorized: {"success": false, "message": "Token inválido."}
+- 404 Not Found: {"success": false, "message": "Recurso no encontrado."}
+- 500 Internal Error: {"success": false, "message": "Error interno del servidor"}
+
+
+================================================================================
+4. TECNOLOGÍAS UTILIZADAS (RESUMEN)
+================================================================================
+
+FRONTEND:
+- React 18.3.1 → Librería de interfaces con componentes
+- Vite 5.4.10 → Bundler y servidor de desarrollo
+- Tailwind CSS 3.4.13 → Framework CSS utilitario (responsive)
+- React Router DOM 6.27.0 → Enrutamiento SPA (Single Page Application)
+- Axios 1.7.7 → Cliente HTTP para consumir la API
+- Lucide React 0.453.0 → Librería de iconos SVG
+
+BACKEND:
+- Node.js 24 → Entorno de ejecución JavaScript
+- Express 4.21.0 → Framework web para APIs
+- Sequelize 6.37.8 → ORM para PostgreSQL
+- pg 8.13.0 → Driver de PostgreSQL para Node.js
+- jsonwebtoken 9.0.2 → Generación y verificación de tokens JWT
+- bcryptjs 2.4.3 → Encriptación de contraseñas
+- express-validator 7.2.0 → Validación de datos de entrada
+- cors 2.8.5 → Permitir peticiones cross-origin
+- dotenv 16.4.5 → Variables de entorno
+
+BASE DE DATOS:
+- PostgreSQL 17 → RDBMS principal
+- pgAdmin 4 → Administración visual
+
+HERRAMIENTAS DE DESARROLLO:
+- Visual Studio Code (Kiro) → Editor de código
+- Git 2.x → Control de versiones
+- GitHub → Repositorio remoto
+- npm → Gestor de paquetes
+- nodemon 3.1.7 → Hot-reload del backend en desarrollo
+- sequelize-cli 6.6.5 → Migraciones y seeders por línea de comandos
+
+DESPLIEGUE Y PRODUCCIÓN:
+- Vercel → Hosting del frontend (https://monetty.vercel.app)
+- Render → Hosting del backend y PostgreSQL en la nube
+- PWA (Progressive Web App) → Instalable en celulares desde el navegador
+
+
+================================================================================
+FIN DEL DOCUMENTO
+================================================================================
