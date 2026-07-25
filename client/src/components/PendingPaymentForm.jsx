@@ -27,7 +27,7 @@ const PendingPaymentForm = ({ payment, onClose }) => {
     setFormData(prev => ({
       ...prev,
       frequency: freq,
-      total_installments: freq === 'once' ? 1 : prev.total_installments
+      total_installments: freq === 'custom' ? (prev.total_installments > 1 ? prev.total_installments : 2) : 1
     }));
   };
 
@@ -150,8 +150,8 @@ const PendingPaymentForm = ({ payment, onClose }) => {
             />
           </div>
 
-          {/* Número de cuotas */}
-          {formData.frequency !== 'once' && (
+          {/* Número de cuotas - Solo para tipo "Cuotas" */}
+          {formData.frequency === 'custom' && (
             <div>
               <label htmlFor="pp-installments" className="block text-sm font-medium text-gray-700 mb-1">
                 Número de cuotas
@@ -178,7 +178,7 @@ const PendingPaymentForm = ({ payment, onClose }) => {
           {/* Fecha límite */}
           <div>
             <label htmlFor="pp-due-date" className="block text-sm font-medium text-gray-700 mb-1">
-              {formData.frequency === 'once' ? 'Fecha límite de pago' : 'Fecha límite final'}
+              {formData.frequency === 'monthly' ? 'Fecha del próximo pago' : formData.frequency === 'once' ? 'Fecha límite de pago' : 'Fecha límite final'}
             </label>
             <input
               id="pp-due-date"

@@ -22,6 +22,11 @@ const Dashboard = () => {
     setShowForm(true);
   };
 
+  const handleQuickExpense = () => {
+    setEditingTransaction({ type: 'expense' });
+    setShowForm(true);
+  };
+
   const handleCloseForm = () => {
     setShowForm(false);
     setEditingTransaction(null);
@@ -38,7 +43,7 @@ const Dashboard = () => {
         </div>
 
         {/* Resumen superior */}
-        <Summary />
+        <Summary onAddExpense={handleQuickExpense} />
 
         {/* Gráfico y filtros */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mt-8">

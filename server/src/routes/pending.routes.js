@@ -24,7 +24,7 @@ const paymentValidation = [
     .notEmpty().withMessage('El monto total es obligatorio.')
     .isFloat({ min: 0.01 }).withMessage('El monto debe ser mayor a 0.'),
   body('total_installments')
-    .notEmpty().withMessage('El número de cuotas es obligatorio.')
+    .optional()
     .isInt({ min: 1 }).withMessage('Debe haber al menos 1 cuota.'),
   body('frequency')
     .notEmpty().withMessage('La frecuencia es obligatoria.')

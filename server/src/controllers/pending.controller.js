@@ -51,14 +51,15 @@ const createPendingPayment = async (req, res) => {
     const { description, total_amount, total_installments, frequency, due_date, category } = req.body;
     const userId = req.user.id;
 
-    const installmentAmount = Math.round((parseFloat(total_amount) / parseInt(total_installments)) * 100) / 100;
+    const installments = parseInt(total_installments) || 1;
+    const installmentAmount = Math.round((parseFloat(total_amount) / installments) * 100) / 100;
 
     const payment = await PendingPayment.create({
       user_id: userId,
       description,
       total_amount,
       installment_amount: installmentAmount,
-      total_installments,
+      total_installments: installments,
       paid_installments: 0,
       frequency,
       due_date,
@@ -120,13 +121,14 @@ const updatePendingPayment = async (req, res) => {
       return res.status(404).json({ success: false, message: 'Pago pendiente no encontrado.' });
     }
 
-    const installmentAmount = Math.round((parseFloat(total_amount) / parseInt(total_installments)) * 100) / 100;
+    const installments = parseInt(total_installments) || 1;
+    const installmentAmount = Math.round((parseFloat(total_amount) / installments) * 100) / 100;
 
     await payment.update({
       description,
       total_amount,
       installment_amount: installmentAmount,
-      total_installments,
+      total_installments: installments,
       frequency,
       due_date,
       category: category || 'Otros'

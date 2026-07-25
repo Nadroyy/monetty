@@ -1,10 +1,10 @@
-import { TrendingUp, TrendingDown, Wallet, Target, AlertCircle, CalendarClock } from 'lucide-react';
+import { TrendingUp, TrendingDown, Wallet, Target, AlertCircle, CalendarClock, Plus } from 'lucide-react';
 import { useTransactions } from '../context/TransactionContext';
 import { useAuth } from '../context/AuthContext';
 import { usePending } from '../context/PendingContext';
 import { formatCurrency, calcPercent } from '../utils/format';
 
-const Summary = () => {
+const Summary = ({ onAddExpense }) => {
   const { totalIncome: transactionIncome, totalExpense: transactionExpense } = useTransactions();
   const { user } = useAuth();
   const { totalPending, allPayments } = usePending();
@@ -20,19 +20,27 @@ const Summary = () => {
   const balance = totalIncome - totalExpense;
 
   // --- BALANCE ESTIMADO A FUTURO ---
-  // Calcula cuántos meses de ingreso fijo se necesitan para cubrir todos los pagos pendientes
-  // y proyecta el balance cuando se hayan liquidado todas las deudas
-  const pendingMonths = allPayments
-    .filter(p => p.status !== 'completed')
-    .reduce((max, p) => {
-      const remainingInstallments = p.total_installments - p.paid_installments;
-      return Math.max(max, p.frequency === 'monthly' ? remainingInstallments : 1);
-    }, 0);
+  // Proyecta el balance una vez que se liquiden todas las deudas con cuotas (custom)
+  // Los pagos mensuales recurrentes no se "liquidan", solo se consideran como gasto fijo
+  const pendingWithInstallments = allPayments
+    .filter(p => p.status !== 'completed' && p.frequency === 'custom' && p.total_installments > 1);
 
-  // Ingreso proyectado en ese periodo (ingreso fijo * meses pendientes)
-  const projectedIncome = monthlyIncome > 0 ? monthlyIncome * Math.max(pendingMonths, 1) : totalIncome;
-  // Una vez pagadas todas las deudas, el balance estimado sería:
-  const estimatedBalance = projectedIncome - totalPending - transactionExpense;
+  const totalPendingInstallments = pendingWithInstallments.reduce((sum, p) => {
+    const remaining = (p.total_installments - p.paid_installments) * p.installment_amount;
+    return sum + remaining;
+  }, 0);
+
+  const pendingMonths = pendingWithInstallments.reduce((max, p) => {
+    const remainingInstallments = p.total_installments - p.paid_installments;
+    return Math.max(max, remainingInstallments);
+  }, 0);
+
+  // Ingreso proyectado en ese periodo
+  const projectedIncome = monthlyIncome > 0 && pendingMonths > 0
+    ? monthlyIncome * pendingMonths
+    : totalIncome;
+  // Balance estimado al liquidar deudas con cuotas
+  const estimatedBalance = projectedIncome - totalPendingInstallments - transactionExpense;
 
   // Presupuesto mensual
   const hasMonthlyIncome = monthlyIncome > 0;
@@ -88,8 +96,12 @@ const Summary = () => {
           </div>
         </div>
 
-        {/* Gastos */}
-        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+        {/* Gastos - Clickeable para agregar gasto rápido */}
+        <button
+          onClick={onAddExpense}
+          className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 text-left w-full hover:border-red-200 hover:shadow-md transition-all group"
+          aria-label="Agregar nuevo gasto"
+        >
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-medium text-gray-500">Gastos</p>
@@ -104,13 +116,20 @@ const Summary = () => {
                 <p className="text-xs text-gray-400 mt-1">Pagos pendientes</p>
               ) : transactionExpense > 0 ? (
                 <p className="text-xs text-gray-400 mt-1">Movimientos registrados</p>
-              ) : null}
+              ) : (
+                <p className="text-xs text-gray-400 mt-1">Toca para agregar gasto</p>
+              )}
             </div>
-            <div className="p-3 rounded-full bg-red-100">
-              <TrendingDown className="text-red-600" size={24} />
+            <div className="relative">
+              <div className="p-3 rounded-full bg-red-100">
+                <TrendingDown className="text-red-600" size={24} />
+              </div>
+              <div className="absolute -top-1 -right-1 bg-red-500 rounded-full p-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                <Plus className="text-white" size={12} />
+              </div>
             </div>
           </div>
-        </div>
+        </button>
 
         {/* Balance Estimado a Futuro */}
         <div className="bg-white rounded-xl shadow-sm border border-purple-100 p-6">
@@ -122,14 +141,14 @@ const Summary = () => {
               </p>
               {pendingMonths > 1 && monthlyIncome > 0 ? (
                 <p className="text-xs text-gray-400 mt-1">
-                  En ~{pendingMonths} meses al liquidar deudas
+                  En ~{pendingMonths} meses al liquidar cuotas
                 </p>
-              ) : totalPending > 0 ? (
+              ) : totalPendingInstallments > 0 ? (
                 <p className="text-xs text-gray-400 mt-1">
-                  Al liquidar todas las deudas
+                  Al liquidar todas las cuotas
                 </p>
               ) : (
-                <p className="text-xs text-gray-400 mt-1">Sin deudas pendientes</p>
+                <p className="text-xs text-gray-400 mt-1">Sin deudas con cuotas</p>
               )}
             </div>
             <div className={`p-3 rounded-full ${estimatedBalance >= 0 ? 'bg-purple-100' : 'bg-red-100'}`}>

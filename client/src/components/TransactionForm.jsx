@@ -6,7 +6,7 @@ import { todayISO } from '../utils/format';
 
 const TransactionForm = ({ transaction, onClose }) => {
   const { createTransaction, updateTransaction } = useTransactions();
-  const isEditing = !!transaction;
+  const isEditing = !!transaction?.id;
 
   const [formData, setFormData] = useState({
     type: transaction?.type || 'expense',
