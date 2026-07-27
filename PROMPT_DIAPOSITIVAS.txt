@@ -1,0 +1,202 @@
+================================================================================
+PROMPT PARA GENERAR DIAPOSITIVAS CON IA (Gamma, Canva AI, ChatGPT, etc.)
+================================================================================
+
+Copia y pega el siguiente prompt en la herramienta de IA que uses para generar
+presentaciones (recomendado: gamma.app, que genera slides directamente).
+
+================================================================================
+PROMPT:
+================================================================================
+
+Crea una presentación profesional de 12 diapositivas para una sustentación universitaria de un proyecto de desarrollo web Full Stack. El proyecto se llama "Monetty" y es un gestor de finanzas personales. El tono debe ser técnico pero claro, moderno y visualmente limpio. Usa colores verdes (#22c55e) y blanco como paleta principal con acentos en gris oscuro. Incluye iconos donde sea apropiado.
+
+---
+
+DIAPOSITIVA 1 — Portada
+- Título: "Monetty - Gestor de Finanzas Personales"
+- Subtítulo: "Aplicación Web Full Stack"
+- Nombres: [PONER NOMBRES DEL GRUPO]
+- Universidad: FESC
+- Fecha: Julio 2026
+- Incluir un ícono o ilustración minimalista de finanzas/dinero
+
+---
+
+DIAPOSITIVA 2 — Problema
+- Título: "El Problema"
+- Bullets:
+  • El 65% de los jóvenes no lleva un registro organizado de sus finanzas
+  • Gastos anotados en notas del celular, hojas sueltas o no se anotan
+  • Se olvidan pagos pendientes y cuotas mensuales
+  • No se identifica en qué se gasta más
+  • No hay forma de proyectar si el dinero alcanzará para el mes
+- Visual: ícono de billetera vacía o persona confundida con facturas
+
+---
+
+DIAPOSITIVA 3 — Solución y Objetivo
+- Título: "Nuestra Solución: Monetty"
+- Objetivo general: Desarrollar una aplicación web que permita gestionar finanzas personales de forma centralizada, con registro de ingresos, gastos y pagos pendientes, visualización de balance en tiempo real y proyecciones financieras.
+- Público objetivo: Jóvenes, universitarios y cualquier persona que quiera control rápido de su dinero desde el celular
+- Diferenciador: Es una PWA instalable (funciona como app nativa sin ir a tienda de apps)
+- Visual: mockup de la app en celular
+
+---
+
+DIAPOSITIVA 4 — Arquitectura del Sistema
+- Título: "Arquitectura de 3 Capas"
+- Diagrama visual con 3 bloques conectados por flechas:
+  • Frontend (React + Vite) → desplegado en Vercel
+  • Backend (Express + Node.js) → desplegado en Render
+  • Base de Datos (PostgreSQL) → hospedada en Render
+- Flechas: Frontend ←→ HTTP/JSON ←→ Backend ←→ SQL ←→ PostgreSQL
+- Nota al pie: "Comunicación via API REST con autenticación JWT"
+
+---
+
+DIAPOSITIVA 5 — Tecnologías Utilizadas
+- Título: "Stack Tecnológico"
+- 3 columnas:
+
+  Frontend:
+  • React 18
+  • Vite 5
+  • Tailwind CSS 3
+  • React Router 6
+  • Axios
+  • PWA
+
+  Backend:
+  • Node.js
+  • Express 4
+  • Sequelize (ORM)
+  • JWT
+  • bcryptjs
+  • express-validator
+
+  Base de Datos:
+  • PostgreSQL 17
+  • Migraciones con Sequelize CLI
+  • Índices B-tree
+  • ENUMs, FK, CASCADE
+
+- Usar logos/iconos de cada tecnología si es posible
+
+---
+
+DIAPOSITIVA 6 — Modelo de Base de Datos
+- Título: "Modelo Relacional"
+- Diagrama ER con 3 tablas:
+
+  users (PK: id)
+  ├── name, email (UNIQUE), password, monthly_income, created_at
+
+  transactions (PK: id, FK: user_id → users)
+  ├── type (income/expense), amount, category, description, date
+
+  pending_payments (PK: id, FK: user_id → users)
+  ├── description, total_amount, installment_amount, total_installments,
+      paid_installments, frequency, due_date, category
+
+- Relaciones: users 1──N transactions, users 1──N pending_payments
+- Nota: "ON DELETE CASCADE - integridad referencial"
+
+---
+
+DIAPOSITIVA 7 — API REST
+- Título: "Endpoints de la API"
+- Tabla resumida:
+
+  | Recurso | Endpoints | Operaciones |
+  |---------|-----------|-------------|
+  | Auth | 4 | Registro, Login, Sesión, Ingreso mensual |
+  | Transactions | 4 | CRUD completo (Crear, Leer, Editar, Eliminar) |
+  | Pending Payments | 5 | CRUD + Registrar cuota pagada |
+
+- Total: 13 endpoints
+- Formato de respuesta: { success, message, data }
+- Autenticación: Bearer Token (JWT) en cada petición protegida
+
+---
+
+DIAPOSITIVA 8 — Funcionalidades Principales
+- Título: "¿Qué puede hacer el usuario?"
+- Lista con íconos:
+  ✅ Registrarse e iniciar sesión de forma segura
+  ✅ Configurar ingreso mensual fijo
+  ✅ Registrar ingresos y gastos con categoría y fecha
+  ✅ Editar y eliminar movimientos
+  ✅ Filtrar por categoría, tipo y rango de fechas
+  ✅ Registrar pagos pendientes (únicos, mensuales o por cuotas)
+  ✅ Ver balance actual y estimado a futuro
+  ✅ Gráfico de gastos por categoría
+  ✅ Barra de presupuesto mensual
+  ✅ Instalar como app en el celular (PWA)
+
+---
+
+DIAPOSITIVA 9 — Seguridad y Validaciones
+- Título: "Seguridad del Sistema"
+- Bullets:
+  • Contraseñas encriptadas con bcrypt (10 salt rounds)
+  • Tokens JWT con expiración de 7 días
+  • Validación en 3 niveles: Frontend (HTML5 + JS) → Backend (express-validator) → BD (constraints)
+  • Cada usuario solo ve sus propios datos (filtro por user_id del token)
+  • CORS configurado para permitir solo el dominio del frontend
+  • Protección contra inyección SQL (Sequelize parametriza queries)
+
+---
+
+DIAPOSITIVA 10 — Demo (pantalla de transición)
+- Título: "Demostración en Vivo"
+- Subtítulo: "monetty.vercel.app"
+- Texto: "Registro → Login → Ingreso mensual → Transacciones CRUD → Filtros → Pagos pendientes → Gráficos → PWA"
+- Visual: captura de pantalla del dashboard o QR code al sitio
+
+---
+
+DIAPOSITIVA 11 — Logros y Dificultades
+- Título: "Logros y Desafíos"
+- 2 columnas:
+
+  Logros:
+  • App Full Stack funcional desplegada en producción
+  • 2 CRUDs completos con validaciones en múltiples niveles
+  • Diseño responsive (celular, tablet, escritorio)
+  • PWA instalable desde el navegador
+  • API REST documentada con 13 endpoints
+
+  Dificultades:
+  • Migración de SQLite a PostgreSQL (reestructuración completa)
+  • Latencia del servidor gratuito en Render (~30s al despertar)
+  • Coordinación de múltiples estados en React (3 Context providers)
+  • Adaptar tablas y formularios para pantallas pequeñas
+
+---
+
+DIAPOSITIVA 12 — Mejoras Futuras y Cierre
+- Título: "Mejoras Futuras"
+- Bullets:
+  • Exportar reportes en PDF/Excel
+  • Notificaciones push para pagos próximos a vencer
+  • Categorías personalizables por usuario
+  • Modo oscuro
+  • Gráficos históricos (comparación mes a mes)
+  • Presupuesto por categoría individual
+- Cierre: "¡Gracias! ¿Preguntas?"
+- Incluir QR code de la app: https://monetty.vercel.app
+
+---
+
+NOTAS DE DISEÑO:
+- Estilo: moderno, limpio, minimalista
+- Paleta: verde (#22c55e), blanco, gris oscuro (#1f2937)
+- Tipografía: Inter o similar sans-serif
+- No sobrecargar las slides con texto — preferir bullets cortos y diagramas
+- Cada slide debe poder explicarse en ~1 minuto
+- Usar íconos de Lucide o similar para acompañar bullets
+
+================================================================================
+FIN DEL PROMPT
+================================================================================

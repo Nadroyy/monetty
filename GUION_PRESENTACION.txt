@@ -1,0 +1,305 @@
+================================================================================
+MONETTY - GUION DE PRESENTACIÓN (12 minutos + 6 de preguntas)
+Gestor de Finanzas Personales
+================================================================================
+
+
+================================================================================
+1. INTRODUCCIÓN (2 minutos)
+================================================================================
+
+PROBLEMA QUE RESUELVE:
+Muchas personas, especialmente jóvenes y universitarios, no llevan un control
+organizado de sus finanzas. Registran gastos en notas del celular, hojas de
+cálculo dispersas o simplemente no los registran. Esto genera:
+- No saber cuánto dinero queda disponible realmente
+- Olvidar pagos pendientes y cuotas (arriendo, cuotas de productos)
+- No identificar en qué categorías se gasta más
+- No poder proyectar si el dinero alcanzará para el mes
+
+OBJETIVO GENERAL:
+Desarrollar una aplicación web Full Stack que permita a los usuarios gestionar
+sus finanzas personales de forma centralizada, registrando ingresos, gastos y
+pagos pendientes, con visualización de balance en tiempo real, gráficos por
+categoría y proyecciones financieras a futuro.
+
+PÚBLICO OBJETIVO:
+- Jóvenes y universitarios que reciben ingreso mensual (mesada, salario, becas)
+- Personas que manejan pagos recurrentes (arriendo, servicios, cuotas)
+- Cualquier persona que quiera un control rápido y visual de su dinero
+- Usuarios de celular (la app es una PWA instalable, funciona como app nativa)
+
+
+================================================================================
+2. DISEÑO Y ARQUITECTURA (2 minutos)
+================================================================================
+
+ARQUITECTURA DE LA SOLUCIÓN:
+El proyecto sigue una arquitectura de 3 capas desacopladas:
+
+    ┌─────────────────┐         ┌─────────────────┐         ┌─────────────────┐
+    │    FRONTEND     │  HTTP   │     BACKEND     │   SQL   │  BASE DE DATOS  │
+    │   (React SPA)   │ ──────► │  (API REST)     │ ──────► │  (PostgreSQL)   │
+    │   Vercel        │ ◄────── │  Render         │ ◄────── │  Render         │
+    └─────────────────┘  JSON   └─────────────────┘  Datos  └─────────────────┘
+
+- El frontend es una SPA (Single Page Application) que se comunica con el backend
+  exclusivamente mediante peticiones HTTP con datos en formato JSON.
+- El backend es una API REST stateless: no guarda sesión, usa tokens JWT.
+- La base de datos almacena todo de forma persistente con relaciones 1:N.
+
+TECNOLOGÍAS UTILIZADAS:
+
+Frontend:
+- React 18 — Librería de interfaces con componentes reutilizables
+- Vite 5 — Herramienta de compilación y servidor de desarrollo
+- Tailwind CSS 3 — Framework CSS utilitario (diseño responsive sin CSS manual)
+- React Router DOM 6 — Navegación entre páginas sin recargar (SPA)
+- Axios — Cliente HTTP con interceptors para el token JWT automático
+- PWA — Progressive Web App instalable en celulares
+
+Backend:
+- Node.js + Express 4 — Servidor y API REST
+- Sequelize — ORM para interactuar con PostgreSQL sin escribir SQL directo
+- JWT (jsonwebtoken) — Autenticación stateless con tokens
+- bcryptjs — Encriptación de contraseñas (hash + salt)
+- express-validator — Validación de datos de entrada
+
+Base de Datos:
+- PostgreSQL 17 — Motor relacional con soporte de ENUMs, índices, constraints
+
+MODELO DE BASE DE DATOS:
+3 tablas con relaciones 1:N:
+
+- users → Almacena usuarios (id, name, email, password, monthly_income)
+- transactions → Movimientos financieros (income/expense con monto, categoría, fecha)
+- pending_payments → Pagos pendientes/deudas (con cuotas, frecuencia, progreso)
+
+Relaciones:
+- Un usuario tiene muchas transacciones (1:N con CASCADE)
+- Un usuario tiene muchos pagos pendientes (1:N con CASCADE)
+
+API REST:
+14 endpoints organizados en 3 recursos:
+- /api/auth/* — Registro, login, sesión, ingreso mensual (4 endpoints)
+- /api/transactions/* — CRUD completo de movimientos (4 endpoints)
+- /api/pending-payments/* — CRUD de pagos + registrar cuota pagada (5 endpoints)
+
+Formato de respuesta estandarizado:
+{ "success": true/false, "message": "...", "data": {...} }
+
+
+================================================================================
+3. DEMOSTRACIÓN DEL SISTEMA (6 minutos)
+================================================================================
+
+GUION DE LA DEMO EN VIVO:
+(Abrir https://monetty.vercel.app en el navegador)
+
+Nota: Si el backend está dormido (Render free tier), la primera carga tarda
+~30 segundos. Abrir la app 1-2 minutos antes de la presentación para "despertar"
+el servidor.
+
+--- PASO 1: Registro de usuario (30 seg) ---
+- Mostrar la landing page (página de inicio pública)
+- Clic en "Crear cuenta"
+- Llenar formulario: nombre, email, contraseña
+- Mostrar que valida: email duplicado, contraseña corta, campos vacíos
+- Registrar exitosamente → redirige al Dashboard
+
+--- PASO 2: Login (30 seg) ---
+- Cerrar sesión
+- Volver a iniciar sesión con las credenciales
+- Mencionar: "El token JWT se guarda en localStorage, si recargo la página
+  la sesión se mantiene por 7 días"
+
+--- PASO 3: Configurar ingreso mensual (30 seg) ---
+- En el Dashboard, mostrar la sección "Ingreso Mensual Fijo"
+- Configurar un ingreso (ej: $2.000.000)
+- Mostrar que se actualiza el balance y la barra de presupuesto
+
+--- PASO 4: Crear transacciones - CRUD (1.5 min) ---
+- CREAR: Clic en la tarjeta de Gastos o botón "Agregar Movimiento"
+  * Registrar un gasto (ej: Almuerzo $15.000, categoría Comida)
+  * Registrar un ingreso (ej: Freelance $500.000, categoría Sueldo)
+- Mostrar que el balance se actualiza en tiempo real
+- EDITAR: Clic en el ícono de editar en un movimiento, cambiar el monto
+- ELIMINAR: Clic en eliminar, confirmar, mostrar que desaparece
+
+--- PASO 5: Filtros (30 seg) ---
+- Filtrar por categoría (ej: solo "Comida")
+- Filtrar por tipo (solo gastos)
+- Filtrar por rango de fechas
+- Limpiar filtros
+
+--- PASO 6: Pagos pendientes (1.5 min) ---
+- Crear un pago MENSUAL (ej: Arriendo $800.000)
+  * Mostrar que NO pide número de cuotas (es recurrente)
+- Crear un pago por CUOTAS (ej: Celular $1.200.000 en 12 cuotas)
+  * Mostrar que calcula la cuota automáticamente ($100.000/cuota)
+- Registrar una cuota pagada → se actualiza la barra de progreso
+- Mostrar los estados: activo, vencido, completado
+
+--- PASO 7: Gráfico y resumen visual (30 seg) ---
+- Mostrar el gráfico de gastos por categoría
+- Mostrar las tarjetas de resumen: Balance, Ingresos, Gastos, Estimado a Futuro
+- Mostrar la barra de presupuesto mensual (% usado)
+- Si el balance es negativo, mostrar la alerta roja
+
+--- PASO 8: Responsive + PWA (30 seg) ---
+- Reducir el tamaño del navegador para mostrar que es responsive
+- Mencionar: "La app es una PWA instalable. En el celular se puede instalar
+  desde Chrome y funciona con ícono propio, como una app nativa"
+- (Si tienen celular a mano, mostrar la app instalada)
+
+--- PASO 9: Aplicación desplegada (15 seg) ---
+- Mencionar las URLs de producción:
+  * Frontend: https://monetty.vercel.app (Vercel)
+  * Backend: https://monetty.onrender.com (Render)
+  * Base de datos: PostgreSQL en Render (nube)
+- "Todo está en la nube, cualquier persona puede acceder y crear su cuenta"
+
+
+================================================================================
+4. CIERRE (2 minutos)
+================================================================================
+
+PRINCIPALES LOGROS:
+- Aplicación Full Stack funcional y desplegada en producción
+- 2 CRUDs completos (transacciones y pagos pendientes) con validaciones
+- Autenticación segura con JWT + contraseñas encriptadas con bcrypt
+- Diseño responsive que funciona en celular, tablet y computador
+- PWA instalable en celulares (funciona como app nativa)
+- Gráficos interactivos y proyecciones financieras automáticas
+- API REST documentada con 14 endpoints y respuestas estandarizadas
+- Base de datos relacional con integridad referencial (FK, CASCADE, índices)
+
+DIFICULTADES ENCONTRADAS:
+- Migración de SQLite a PostgreSQL: el proyecto inició con SQLite (local) y se
+  migró a PostgreSQL con Sequelize para poder desplegar en la nube. Requirió
+  reestructurar modelos, configuración y adaptar consultas.
+- Deploy del backend en Render: el plan gratuito "duerme" el servidor tras 15 min
+  de inactividad, lo que causa latencia en la primera petición (~30s).
+- Manejo de estados en React: coordinar múltiples Context providers (Auth,
+  Transactions, Pending) sin redundancia y evitar renders innecesarios.
+- Diseño responsive: adaptar tablas y formularios para que se vean bien en
+  pantallas pequeñas sin perder funcionalidad.
+
+MEJORAS FUTURAS:
+- Exportar reportes en PDF o Excel (resumen mensual descargable)
+- Notificaciones push cuando un pago está próximo a vencer
+- Categorías personalizables (que el usuario cree sus propias categorías)
+- Modo oscuro (dark mode)
+- Gráficos históricos: comparación mes a mes de ingresos vs gastos
+- Presupuesto por categoría (no solo un presupuesto global)
+- Multi-moneda (soporte para dólares, euros, etc.)
+- Sincronización entre dispositivos en tiempo real (WebSockets)
+
+
+================================================================================
+PREGUNTAS FRECUENTES (preparación para los 6 minutos de Q&A)
+================================================================================
+
+P: ¿Por qué React y no Angular o Vue?
+R: React tiene la comunidad más grande, más recursos de aprendizaje, y es el
+   más demandado en el mercado laboral. Además Vite lo hace muy rápido para
+   desarrollo. Es basado en componentes y JSX es intuitivo para quien ya sabe
+   JavaScript.
+
+P: ¿Por qué PostgreSQL y no MySQL?
+R: PostgreSQL soporta ENUMs nativos, tipos más avanzados, y es el que ofrece
+   Render de forma gratuita para el despliegue. Además Sequelize lo soporta
+   perfectamente con migraciones.
+
+P: ¿Cómo funciona la autenticación?
+R: Usamos JWT (JSON Web Token). Al hacer login, el servidor genera un token
+   firmado con una clave secreta que contiene el ID y email del usuario. Ese
+   token se guarda en el frontend (localStorage) y se envía automáticamente
+   en cada petición en el header Authorization. El middleware del backend lo
+   verifica en cada ruta protegida.
+
+P: ¿Qué pasa si alguien intenta acceder a transacciones de otro usuario?
+R: Cada consulta filtra por user_id (extraído del token JWT). No hay forma de
+   ver o modificar datos de otro usuario porque el ID viene del token verificado,
+   no del frontend.
+
+P: ¿Qué es Sequelize y por qué lo usan?
+R: Es un ORM (Object-Relational Mapping). Traduce operaciones de JavaScript
+   a consultas SQL. En vez de escribir "SELECT * FROM transactions WHERE...",
+   usamos Transaction.findAll({ where: {...} }). También maneja migraciones
+   para versionar cambios en la estructura de la base de datos.
+
+P: ¿Qué es una PWA?
+R: Progressive Web App. Es una web que se puede "instalar" en el celular como
+   si fuera una app nativa. Tiene su propio ícono, se abre sin barra del
+   navegador, y puede funcionar offline para ciertas cosas. Lo logramos con
+   un manifest.json y un Service Worker.
+
+P: ¿Cómo manejan los errores?
+R: En dos niveles. Frontend: validaciones HTML5 + JavaScript antes de enviar.
+   Backend: express-validator revisa cada campo, si hay error responde 400 con
+   mensajes claros en español. Además cada controlador tiene try/catch y hay un
+   middleware global de errores.
+
+P: ¿Qué metodología usaron?
+R: Desarrollo iterativo-incremental con principios de Kanban adaptado. No usamos
+   Scrum completo porque somos un equipo pequeño. Trabajamos por flujo continuo:
+   una funcionalidad a la vez, commits frecuentes con convención semántica
+   (feat:, fix:, refactor:), y control de versiones con Git/GitHub.
+
+P: ¿Qué tipo de relaciones tiene la base de datos?
+R: Relaciones 1:N (uno a muchos). Un usuario puede tener muchas transacciones
+   y muchos pagos pendientes. Se implementan con Foreign Keys y ON DELETE CASCADE
+   (si se elimina el usuario, se eliminan todos sus registros). En Sequelize se
+   definen con User.hasMany() y Transaction.belongsTo().
+
+P: ¿Cómo hacen el deploy?
+R: El frontend se sube a Vercel conectado a GitHub — cada push a main hace
+   deploy automático. El backend está en Render también conectado a GitHub con
+   auto-deploy. La base de datos PostgreSQL está en Render.
+
+P: ¿Qué validaciones tiene el sistema?
+R: Validaciones en frontend (HTML5: required, minLength, type="email"; y
+   JavaScript: montos > 0, contraseñas coinciden). Validaciones en backend
+   (express-validator: isEmail, isFloat, isIn para enums, trim para sanitizar).
+   Y restricciones en base de datos (NOT NULL, CHECK, UNIQUE, FOREIGN KEY).
+
+P: ¿Por qué no usaron TypeScript?
+R: Para un proyecto de esta escala con un equipo pequeño y plazo académico,
+   JavaScript puro con JSX nos permite iterar más rápido. TypeScript agrega
+   una capa de complejidad (tipado, interfaces, configuración) que no era
+   necesaria para cumplir los objetivos. Para un proyecto más grande o en
+   producción empresarial, sí lo usaríamos.
+
+
+================================================================================
+TIPS PARA LA PRESENTACIÓN
+================================================================================
+
+1. Abrir monetty.vercel.app 2-3 minutos ANTES de presentar para despertar
+   el backend de Render (tarda ~30s la primera vez).
+
+2. Tener un usuario ya creado con datos de ejemplo (transacciones, pagos
+   pendientes) para mostrar el dashboard lleno, no vacío.
+
+3. Si la demo falla por internet/Render:
+   - Tener capturas de pantalla de respaldo
+   - Mencionar: "El servidor gratuito de Render se duerme, en producción
+     real se usaría un plan pago que no tiene este problema"
+
+4. Repartir las secciones entre los integrantes del grupo. Ejemplo:
+   - Persona 1: Introducción + Demo (registro, login, transacciones)
+   - Persona 2: Arquitectura + Demo (pagos pendientes, gráficos)
+   - Persona 3: Cierre + Responder preguntas técnicas
+
+5. Practicar la demo al menos 1 vez antes. Saber exactamente qué datos vas
+   a ingresar y en qué orden.
+
+6. No leer. Hablar con naturalidad, señalar la pantalla, explicar lo que
+   está pasando detrás (ej: "cuando doy guardar, React hace un POST a la API,
+   Express valida los datos y Sequelize lo guarda en PostgreSQL").
+
+
+================================================================================
+FIN DEL GUION
+================================================================================

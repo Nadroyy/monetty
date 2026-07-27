@@ -1,0 +1,189 @@
+================================================================================
+MONETTY - INSTRUCCIONES DE INSTALACIÓN Y EJECUCIÓN
+================================================================================
+
+REQUISITOS PREVIOS:
+- Node.js 18+ (descargar de https://nodejs.org)
+- PostgreSQL 14+ (descargar de https://www.postgresql.org/download/)
+- Git (descargar de https://git-scm.com)
+
+================================================================================
+PASO 1: CLONAR EL REPOSITORIO
+================================================================================
+
+git clone https://github.com/Nadroyy/monetty.git
+cd monetty
+
+================================================================================
+PASO 2: CREAR LA BASE DE DATOS EN POSTGRESQL
+================================================================================
+
+Opción A — Desde pgAdmin:
+1. Abrir pgAdmin
+2. Conectarse al servidor local (contraseña del usuario postgres)
+3. Click derecho en "Databases" → Create → Database
+4. Name: monetty
+5. Save
+
+Opción B — Desde terminal:
+createdb -U postgres monetty
+
+================================================================================
+PASO 3: CONFIGURAR EL BACKEND
+================================================================================
+
+cd server
+npm install
+
+Crear archivo .env (o editar el existente) con este contenido:
+
+   PORT=5000
+   DATABASE_URL=postgresql://postgres:TU_CONTRASEÑA@localhost:5432/monetty
+   JWT_SECRET=monetty_dev_secret_key_2026
+   JWT_EXPIRES_IN=7d
+
+IMPORTANTE: Reemplazar TU_CONTRASEÑA con la contraseña que se puso
+al instalar PostgreSQL.
+
+Ejecutar las migraciones (crea las tablas):
+
+   npm run db:migrate
+
+(Opcional) Cargar datos de prueba:
+
+   npm run db:seed
+
+Esto crea un usuario demo:
+- Email: demo@monetty.com
+- Contraseña: 123456
+
+================================================================================
+PASO 4: CONFIGURAR EL FRONTEND
+================================================================================
+
+cd ../client
+npm install
+
+El archivo .env del frontend ya apunta a localhost:
+
+   VITE_API_URL=http://localhost:5000/api
+
+(No necesita cambios para ejecución local)
+
+================================================================================
+PASO 5: EJECUTAR
+================================================================================
+
+Terminal 1 — Backend:
+   cd server
+   node src/index.js
+
+   Debe mostrar:
+   ℹ️  [timestamp] [INFO] Conectado a PostgreSQL con Sequelize
+   ℹ️  [timestamp] [INFO] Modelos sincronizados
+   ℹ️  [timestamp] [INFO] Servidor Monetty corriendo en puerto 5000
+
+Terminal 2 — Frontend:
+   cd client
+   npx vite --host
+
+   Debe mostrar:
+   Local:   http://localhost:5173/
+   Network: http://192.168.x.x:5173/
+
+================================================================================
+PASO 6: ABRIR EN EL NAVEGADOR
+================================================================================
+
+Abrir: http://localhost:5173
+
+Opciones:
+- Registrar un usuario nuevo (botón "Crear cuenta")
+- O usar el usuario demo: demo@monetty.com / 123456 (si se ejecutó el seeder)
+
+================================================================================
+VERIFICAR LA BASE DE DATOS EN PGADMIN
+================================================================================
+
+Para ver los datos mientras se usa la app:
+
+1. Abrir pgAdmin → Servers → PostgreSQL → Databases → monetty
+2. Click derecho en "monetty" → Query Tool
+3. Ejecutar consultas SQL:
+
+   -- Ver usuarios registrados
+   SELECT id, name, email, monthly_income, created_at FROM users;
+
+   -- Ver transacciones
+   SELECT * FROM transactions ORDER BY date DESC;
+
+   -- Ver pagos pendientes
+   SELECT * FROM pending_payments;
+
+   -- Ver cuántas transacciones tiene cada usuario
+   SELECT u.name, COUNT(t.id) as total_transacciones
+   FROM users u LEFT JOIN transactions t ON u.id = t.user_id
+   GROUP BY u.name;
+
+================================================================================
+ESTRUCTURA DEL PROYECTO
+================================================================================
+
+monetty/
+├── client/              ← Frontend (React + Vite + Tailwind)
+│   ├── src/pages/       ← 6 páginas
+│   ├── src/components/  ← 11 componentes reutilizables
+│   ├── src/context/     ← 3 contextos (Auth, Transactions, Pending)
+│   └── src/services/    ← Axios configurado
+│
+└── server/              ← Backend (Express + Sequelize + PostgreSQL)
+    ├── src/models/      ← 3 modelos Sequelize (User, Transaction, PendingPayment)
+    ├── src/migrations/  ← 3 migraciones
+    ├── src/controllers/ ← 3 controladores
+    ├── src/routes/      ← 3 archivos de rutas
+    ├── src/middleware/  ← Auth JWT, validación, errorHandler, requestLogger
+    └── src/utils/       ← Logger centralizado
+
+================================================================================
+COMANDOS ÚTILES
+================================================================================
+
+Backend:
+   npm run dev            → Inicia con hot-reload (nodemon)
+   npm run db:migrate     → Ejecuta migraciones pendientes
+   npm run db:migrate:undo → Revierte todas las migraciones
+   npm run db:seed        → Carga datos de prueba
+   npm start             → Inicia en producción
+
+Frontend:
+   npm run dev           → Inicia servidor de desarrollo
+   npm run build         → Genera build de producción
+
+================================================================================
+SOLUCIÓN DE PROBLEMAS
+================================================================================
+
+Error: "password authentication failed for user postgres"
+→ Verificar la contraseña en el .env del server
+
+Error: "database monetty does not exist"
+→ Crear la base de datos primero (Paso 2)
+
+Error: "ECONNREFUSED 127.0.0.1:5432"
+→ PostgreSQL no está corriendo. Iniciar el servicio.
+
+Error: "EADDRINUSE :::5000"
+→ El puerto 5000 ya está ocupado. Cerrar el proceso anterior.
+
+================================================================================
+VERSIÓN DESPLEGADA (ONLINE)
+================================================================================
+
+Si no se puede ejecutar localmente, la app está disponible en:
+- Frontend: https://monetty.vercel.app
+- Backend: https://monetty.onrender.com
+
+Nota: El backend gratuito en Render se "duerme" tras 15 min de inactividad.
+La primera petición tarda ~30 segundos en despertar.
+
+================================================================================
