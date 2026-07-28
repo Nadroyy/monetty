@@ -1,9 +1,10 @@
 require('dotenv').config();
+const path = require('path');
 
 module.exports = {
   development: {
-    url: process.env.DATABASE_URL,
-    dialect: 'postgres',
+    dialect: 'sqlite',
+    storage: path.join(__dirname, '..', '..', 'data', 'monetty.db'),
     logging: false,
     define: {
       timestamps: true,
